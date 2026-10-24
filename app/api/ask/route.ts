@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     return new Response(new ReadableStream({ start(c) { c.enqueue(line({ t: "meta", mode: "basic" })); c.enqueue(line({ t: "text", v: answer })); c.enqueue(line({ t: "done" })); c.close(); } }), { headers });
   }
 
-  const gate = await takeAi(supabase, user, today);
+  const gate = await takeAi(supabase, user, today, "ask");
   if (!gate.ok) return new Response(new ReadableStream({ start(c) { c.enqueue(line({ t: "error", v: gate.error })); c.close(); } }), { headers });
   const provider = gate.provider;
 

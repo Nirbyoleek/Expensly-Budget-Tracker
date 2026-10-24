@@ -51,7 +51,7 @@ export async function aiSortImport(items: { name: string; out: boolean }[]): Pro
     if (!misses.length) return { ok: true, picks, asked: 0, cached };
 
     const today = todayISO();
-    const gate = await takeAi(supabase, user, today);
+    const gate = await takeAi(supabase, user, today, "import");
     if (!gate.ok) return { ok: true, picks, asked: 0, cached }; // no AI or out of quota: cache only
 
     const options = TAXONOMY.filter((c) => !SKIP.has(c.id)).map((c) => `${c.id}: ${c.subs.map((s) => s.id).join(", ")}`).join("\n");

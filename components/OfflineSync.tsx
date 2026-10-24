@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addTransactions } from "@/app/actions";
 import { useApp } from "@/components/app";
 import { flush, pendingCount } from "@/lib/offline-queue";
+import { trackClient } from "@/app/track-actions";
 
 /** Shows when you're offline and sends quick-adds saved meanwhile once the connection is back. */
 export default function OfflineSync() {
@@ -22,7 +23,7 @@ export default function OfflineSync() {
       const r = await flush((rows) => addTransactions({ rows: rows as Parameters<typeof addTransactions>[0]["rows"] }));
       running = false;
       setWaiting(r.left);
-      if (r.added) { router.refresh(); toast(`Synced ${r.added} entr${r.added === 1 ? "y" : "ies"} you added offline`); }
+      if (r.added) { trackClient("offline_synced", { count: r.added }).catch(() => undefined); router.refresh(); toast(`Synced ${r.added} entr${r.added === 1 ? "y" : "ies"} you added offline`); }
       else if (r.failed) toast(`${r.failed} offline entr${r.failed === 1 ? "y" : "ies"} couldn't be saved`);
     };
     const update = () => { setOffline(!navigator.onLine); if (navigator.onLine) void sync(); };

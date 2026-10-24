@@ -9,6 +9,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { addMonths, monthStart, todayISO } from "@/lib/dates";
 import { buildMemory, isGenericName, prepareRow, ruleKey, vpaOf } from "@/lib/ingest/core";
 import type { MerchantRule, Transaction } from "@/lib/types";
+import { track, trackAs } from "@/lib/track";
 import { SAMPLE_ACCOUNTS, SAMPLE_GOALS, sampleSnapshots, sampleTransactions } from "@/lib/sample";
 
 export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -55,6 +56,7 @@ export async function signInWithPassword(email: string, password: string): Promi
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword({ email: Email.parse(email), password: z.string().min(1, "Enter your password.").parse(password) });
+    if (!error) track(supabase, "sign_in", { method: "password" });
     if (error) throw new Error(error.status === 429 ? "Too many tries. Wait a minute and try again." : "That email and password don't match.");
   } catch (e) {
     return fail(e);
@@ -72,8 +74,9 @@ export async function signUpWithPassword(email: string, password: string): Promi
     const e = Email.parse(email), pw = Password.parse(password);
     const admin = createServiceClient();
     if (!admin) throw new Error("New accounts can't be created right now. (The app owner needs to set SUPABASE_SERVICE_ROLE_KEY on the server.)");
-    const { error } = await admin.auth.admin.createUser({ email: e, password: pw, email_confirm: true });
+    const { data: made, error } = await admin.auth.admin.createUser({ email: e, password: pw, email_confirm: true });
     if (error) throw new Error(/already|registered|exists/i.test(error.message) ? "There's already an account with this email. Sign in instead." : error.message);
+    if (made?.user) trackAs(admin, made.user.id, "signup", { method: "password" });
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: e, password: pw });
     if (signInError) throw new Error(signInError.message);
   } catch (e) {
@@ -184,6 +187,7 @@ export async function addTransactions(input: {
     if (error) throw new Error(error.message);
     const added = data?.length ?? 0;
     if (importId) await supabase.from("imports").update({ added_count: added, skipped_count: rows.length - added }).eq("id", importId);
+    track(supabase, input.file ? "statement_imported" : "tx_added", { added, skipped: rows.length - added, source: input.file?.kind ?? rows[0]?.source ?? "manual", account: !!accountId });
     done();
     return { ok: true, added, skipped: rows.length - added, importId, accountName };
   } catch (e) {
@@ -239,6 +243,7 @@ export async function updateTransaction(
       });
       alsoChanged = r;
     }
+    track(supabase, "tx_edited", { applied_to_others: alsoChanged });
     done();
     return { ok: true, alsoChanged };
   } catch (e) {
@@ -298,6 +303,7 @@ export async function updateMerchant(
         if (p.rename_to) await supabase.from("merchant_rules").upsert({ pattern: ruleKey(p.rename_to), ...rule, rename_to: null }, { onConflict: "user_id,pattern" });
       }
     }
+    track(supabase, "merchant_rule", { changed: data?.length ?? 0, renamed: !!p.rename_to });
     done();
     return { ok: true, changed: data?.length ?? 0 };
   } catch (e) {
@@ -364,6 +370,7 @@ export async function reclassifyAll(dryRun = false): Promise<ActionResult<{ chan
         const { error } = await supabase.from("transactions").upsert(updates.slice(i, i + 500), { onConflict: "id" });
         if (error) throw new Error(error.message);
       }
+      track(supabase, "recategorised", { changed, renamed, detailed });
       done();
     }
     return { ok: true, changed, renamed, detailed, examples };
@@ -377,6 +384,7 @@ export async function setReviewed(ids: string[], reviewed = true): Promise<Actio
     const { supabase } = await session();
     const { error } = await supabase.from("transactions").update({ reviewed }).in("id", z.array(z.string().uuid()).max(2000).parse(ids));
     if (error) throw new Error(error.message);
+    if (reviewed) track(supabase, "reviewed", { count: ids.length });
     done();
     return { ok: true };
   } catch (e) {
@@ -419,6 +427,7 @@ export async function setBudget(categoryId: string, limitPaise: number): Promise
       .from("budgets")
       .upsert({ category_id: CategoryId.parse(categoryId), month: monthStart(todayISO()), limit_paise: limit }, { onConflict: "user_id,category_id,month" });
     if (error) throw new Error(error.message);
+    track(supabase, "budget_set", { custom: categoryId.startsWith("u_"), cleared: limit === 0 });
     done();
     return { ok: true };
   } catch (e) {
@@ -450,6 +459,7 @@ export async function createCategory(input: z.input<typeof CategoryInput>): Prom
     if (c.budget_paise) {
       await supabase.from("budgets").upsert({ category_id: id, month: monthStart(todayISO()), limit_paise: c.budget_paise }, { onConflict: "user_id,category_id,month" });
     }
+    track(supabase, "category_created", { group: c.grp, with_budget: !!c.budget_paise });
     done();
     return { ok: true, id };
   } catch (e) {
@@ -494,6 +504,7 @@ export async function deleteCategory(id: string, moveTo = "uncat"): Promise<Acti
     await supabase.from("budgets").delete().eq("category_id", cid);
     const { error } = await supabase.from("categories").delete().eq("id", cid).eq("user_id", user.id);
     if (error) throw new Error(error.message);
+    track(supabase, "category_deleted", { moved: moved?.length ?? 0 });
     done();
     return { ok: true, moved: moved?.length ?? 0 };
   } catch (e) {
@@ -557,6 +568,7 @@ export async function saveIncomePlan(input: { salary_paise: number; other_paise:
       .from("income_plans")
       .upsert({ month, salary_paise: p.salary_paise, other_paise: p.other_paise, payday: p.payday, savings_goal_pct: p.savings_goal_pct }, { onConflict: "user_id,month" });
     if (error) throw new Error(error.message);
+    track(supabase, "income_set", {});
     done();
     return { ok: true };
   } catch (e) {
@@ -597,6 +609,7 @@ export async function saveAccount(input: z.input<typeof AccountInput>): Promise<
     const { error } = a.id ? await supabase.from("accounts").update(row).eq("id", a.id) : await supabase.from("accounts").insert(row);
     if (error) throw new Error(error.message);
     await snapshotNetWorth(supabase);
+    track(supabase, "account_saved", {});
     done();
     return { ok: true };
   } catch (e) {
@@ -642,6 +655,7 @@ export async function createGoal(input: { name: string; target_paise: number; ta
       .parse(input);
     const { error } = await supabase.from("goals").insert({ ...g, ...linkColumns(link) });
     if (error) throw new Error(error.message);
+    track(supabase, "goal_created", { autofill: link?.kind ?? "none" });
     done();
     return { ok: true };
   } catch (e) {
@@ -674,6 +688,7 @@ export async function setGoalLink(goalId: string, link: { kind: "invest" | "paye
     const id = z.string().uuid().parse(goalId);
     const { error } = await supabase.from("goals").update(linkColumns(GoalLinkInput.parse(link))).eq("id", id);
     if (error) throw new Error(error.message);
+    track(supabase, "goal_autofill", { kind: link?.kind ?? "off" });
     done();
     return { ok: true };
   } catch (e) {
@@ -711,6 +726,7 @@ export async function loadSampleData(): Promise<ActionResult> {
     );
     await supabase.from("net_worth_snapshots").upsert(sampleSnapshots(today), { onConflict: "user_id,month", ignoreDuplicates: true });
     await snapshotNetWorth(supabase);
+    track(supabase, "sample_loaded", {});
     done();
     return { ok: true };
   } catch (e) {
@@ -747,6 +763,7 @@ export async function rotateIngestToken(): Promise<ActionResult<{ token: string 
     const hash = createHash("sha256").update(token).digest("hex");
     const { error } = await supabase.from("profiles").update({ ingest_token_hash: hash }).eq("id", user.id);
     if (error) throw new Error(error.message);
+    track(supabase, "capture_key", {});
     done();
     return { ok: true, token };
   } catch (e) {
@@ -762,7 +779,9 @@ export async function deleteEverything(confirmText: string): Promise<ActionResul
     const admin = createServiceClient();
     if (!admin) throw new Error("Account deletion isn't available right now. Try again later.");
     // Deleting the login removes every row that belongs to it (all tables cascade), sign-in included.
+    const days = Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86400000);
     const { error } = await admin.auth.admin.deleteUser(user.id);
+    if (!error) trackAs(admin, null, "account_deleted", { days_since_signup: days });
     if (error) throw new Error(`Couldn't delete your account: ${error.message}`);
     await supabase.auth.signOut().catch(() => undefined);
   } catch (e) {

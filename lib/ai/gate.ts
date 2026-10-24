@@ -2,19 +2,22 @@ import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { LIMITS } from "./limits";
 import { runProvider, serverProvider, type Provider } from "./provider";
+import { track } from "@/lib/track";
+import { isTestAccount } from "@/lib/test-accounts";
 
 /**
  * Every AI feature goes through here: is AI on for this person, and do they have quota left?
  * Each call to `takeAi` counts as one question against their limits.
  */
 export function aiProviderFor(user: User): Provider | null {
+  if (isTestAccount(user.email)) return null; // automated test accounts never spend AI
   const allowed = (process.env.AI_ALLOWED_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return !allowed.length || allowed.includes((user.email ?? "").toLowerCase()) ? serverProvider() : null;
 }
 
 export type Gate = { ok: true; provider: Provider; leftToday: number | null } | { ok: false; error: string; noAi?: boolean };
 
-export async function takeAi(supabase: SupabaseClient, user: User, day: string): Promise<Gate> {
+export async function takeAi(supabase: SupabaseClient, user: User, day: string, feature = "ask"): Promise<Gate> {
   const provider = aiProviderFor(user);
   if (!provider) return { ok: false, error: "AI isn't set up yet.", noAi: true };
   const caps = LIMITS.server;
@@ -31,6 +34,7 @@ export async function takeAi(supabase: SupabaseClient, user: User, day: string):
         q.reason === "disabled" ? "AI is switched off for your account." : "AI isn't available right now.",
     };
   }
+  track(supabase, feature === "import" || feature === "quick" ? "ai_sort" : feature === "budgets" ? "ai_budget_plan" : "ai_question", { feature });
   return { ok: true, provider, leftToday: q.left_today ?? null };
 }
 

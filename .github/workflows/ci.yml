@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: Typecheck and tests
+    name: Typecheck, tests and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,3 +24,83 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+
+  # Every push to main that passes the checks above goes live automatically:
+  # build for production → deploy without taking traffic → run the signed-in end-to-end journey
+  # against that exact deployment → only then point the live domain at it → smoke-test the live site.
+  # Needs the repository secret VERCEL_TOKEN (and VERCEL_AUTOMATION_BYPASS_SECRET if Vercel
+  # deployment protection is on). Without VERCEL_TOKEN this job is skipped.
+  deploy:
+    name: Deploy to production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: { group: production, cancel-in-progress: false }
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_0ikqRD1XbTacXGqobGUsSVgy
+      VERCEL_PROJECT_ID: prj_FvJJ0jPI03oeMUOWKUmsTmds4NSE
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Skip if Vercel isn't connected yet
+        id: gate
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::notice::Add the VERCEL_TOKEN repository secret to turn on automatic deploys."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.gate.outputs.ready == 'true'
+      - name: Build for production
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy without taking traffic
+        id: deploy
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          url=$(npx --yes vercel@latest deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url (not live yet)"
+      - name: Check the new deployment is reachable
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" "${{ steps.deploy.outputs.url }}/login")
+          if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+            echo "::error::Vercel deployment protection blocked the tests ($code). Add VERCEL_AUTOMATION_BYPASS_SECRET (Vercel → Project → Settings → Deployment Protection → Protection Bypass for Automation)."
+            exit 1
+          fi
+          echo "Got $code from /login"
+      - name: End-to-end journey (signed in, throwaway account)
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          E2E_BASE_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          npm install --no-save @playwright/test@1.56.0
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Keep the test report
+        if: failure() && steps.gate.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+      - name: Go live
+        if: steps.gate.outputs.ready == 'true'
+        run: npx --yes vercel@latest promote "${{ steps.deploy.outputs.url }}" --yes --token="$VERCEL_TOKEN"
+      - name: Smoke-test the live site
+        if: steps.gate.outputs.ready == 'true'
+        run: node scripts/smoke.mjs

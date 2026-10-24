@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { parseSms } from "@/lib/ingest/parsers";
 import { prepareRows } from "@/lib/ingest/core";
 import { todayISO } from "@/lib/dates";
+import { trackAs } from "@/lib/track";
 import type { MerchantRule } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
   if (error) return json({ error: "Couldn't save that message." }, 500);
 
   const added = (data ?? []) as { merchant_name: string; amount_paise: number }[];
+  trackAs(admin, profile.id as string, "sms_captured", { added: added.length });
   return json({
     added: added.length,
     message: added.length

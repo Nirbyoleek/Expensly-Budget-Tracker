@@ -4,6 +4,7 @@ import { addMonths, monthStart, todayISO } from "@/lib/dates";
 import { remindersFor } from "@/lib/reminders";
 import { pushConfigured, sendPush } from "@/lib/push";
 import { logError, ownerEmail } from "@/lib/errors";
+import { isTestAccount } from "@/lib/test-accounts";
 import type { BudgetRow, Category, Transaction } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,15 @@ export async function GET(req: Request) {
     db.from("categories").select("id,name,color,kind,default_budget_paise,sort,user_id"),
     db.auth.admin.listUsers({ perPage: 1000 }),
   ]);
-  const known = new Set((users?.users ?? []).map((u) => u.id));
+  // Accounts left behind by a failed end-to-end test run: remove any older than two hours.
+  let cleaned = 0;
+  for (const u of users?.users ?? []) {
+    if (isTestAccount(u.email) && Date.now() - new Date(u.created_at).getTime() > 2 * 3600000) {
+      const { error } = await db.auth.admin.deleteUser(u.id);
+      if (!error) cleaned++;
+    }
+  }
+  const known = new Set((users?.users ?? []).filter((u) => !isTestAccount(u.email)).map((u) => u.id));
   let created = 0, pushed = 0, gone = 0;
 
   for (const p of profiles ?? []) {
@@ -92,5 +101,5 @@ export async function GET(req: Request) {
     // keep the table small: 30 days is plenty
     await db.from("app_errors").delete().lt("at", new Date(Date.now() - 30 * 86400000).toISOString());
   }
-  return NextResponse.json({ ok: true, today, created, pushed, gone, errors: report });
+  return NextResponse.json({ ok: true, today, created, pushed, gone, errors: report, cleaned });
 }

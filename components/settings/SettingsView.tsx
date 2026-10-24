@@ -67,6 +67,13 @@ export default function SettingsView({ email, hasSample, hasToken, origin, plan,
       <NotificationsCard prefs={notify} />
 
       {health && <HealthCard items={health} />}
+      {health && (
+        <Link href="/admin" className="card tile-link">
+          <span className="glyph-box" aria-hidden="true">▤</span>
+          <span><b>Usage</b><small>How many people use Expensly, what they use, and where new people stop. Only you see this.</small></span>
+          <span aria-hidden="true">›</span>
+        </Link>
+      )}
 
       <section className="card stack">
         <h2>Re-categorise everything</h2>

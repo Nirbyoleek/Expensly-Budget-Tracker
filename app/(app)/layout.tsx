@@ -4,6 +4,7 @@ import TabBar from "@/components/TabBar";
 import Sidebar from "@/components/Sidebar";
 import CommandPalette from "@/components/CommandPalette";
 import OfflineSync from "@/components/OfflineSync";
+import PageTracker from "@/components/PageTracker";
 import { getCategories, getRecentTransactions, getRules } from "@/lib/data";
 import { buildMemory } from "@/lib/ingest/classify";
 
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AddSheet />
       <CommandPalette />
       <OfflineSync />
+      <PageTracker />
     </AppProvider>
   );
 }

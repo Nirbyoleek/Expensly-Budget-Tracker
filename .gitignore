@@ -17,3 +17,7 @@ public/pdf.worker.min.mjs
 # local tooling
 .vercel
 .DS_Store
+
+# end-to-end test output
+playwright-report
+test-results

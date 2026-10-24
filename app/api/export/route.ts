@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { track } from "@/lib/track";
 import { CSV_HEADER, csvLine } from "@/lib/export";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,8 @@ export async function GET(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response("Sign in first.", { status: 401 });
   const day = new Date().toISOString().slice(0, 10);
+  const wantsJson = new URL(req.url).searchParams.get("format") === "json";
+  track(supabase, "export", { format: wantsJson ? "json" : "csv" });
 
   // Everything Expensly holds about you, as JSON (your right to a copy of your data).
   if (new URL(req.url).searchParams.get("format") === "json") {

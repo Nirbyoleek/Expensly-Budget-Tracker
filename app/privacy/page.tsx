@@ -17,6 +17,7 @@ export default function Privacy() {
           <li>The transactions you add or import: date, amount, merchant text, category and any note.</li>
           <li>Things you set up: budgets, income, accounts, goals, rules and reminder preferences.</li>
           <li>A count of your AI questions, to apply daily limits.</li>
+          <li>Simple usage counts, such as which pages you open and which features you use (for example &ldquo;imported a statement&rdquo; or &ldquo;set a budget&rdquo;), so we know what to improve. These never include amounts, merchant names or anything you type, are kept in our own database (no third-party trackers or ads) and are deleted with your account.</li>
         </ul>
 
         <h2>What we don&apos;t keep</h2>

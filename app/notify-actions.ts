@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { pushConfigured, sendPush } from "@/lib/push";
+import { track } from "@/lib/track";
 
 type R<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const fail = (e: unknown): { ok: false; error: string } => ({ ok: false, error: e instanceof Error ? e.message : "Something went wrong. Try again." });
@@ -48,6 +49,7 @@ export async function savePushSubscription(sub: { endpoint: string; p256dh: stri
     if (admin) await admin.from("push_subscriptions").delete().eq("endpoint", s.endpoint).neq("user_id", user.id);
     const { error } = await supabase.from("push_subscriptions").upsert({ user_id: user.id, endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth, user_agent: s.ua ?? null }, { onConflict: "endpoint" });
     if (error) throw new Error(error.message);
+    track(supabase, "push_enabled", {});
     return { ok: true };
   } catch (e) {
     return fail(e);
