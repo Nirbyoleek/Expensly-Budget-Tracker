@@ -56,7 +56,7 @@ Expensly starts from one question you can act on every day: **how much can I saf
 | 📅 **Daily calendar** | Every day of the month coloured by how much you spent, with the amount on each day and past months one tap away |
 | ✦ **Ask AI** | Chat with your own money: "Why did I spend more than last month?" |
 | 🔔 **Reminders** | Budget warnings, bills due tomorrow and a Monday summary, as phone notifications |
-| 🏦 **Wealth** | Net worth, accounts, savings goals and detected recurring payments |
+| 🏦 **Goals & net worth** | Net worth, accounts and savings goals, next to your budgets under Plan |
 | 🔒 **Your data, your call** | Export everything any time; delete your account in one step |
 
 ---
@@ -108,7 +108,10 @@ Every transaction, grouped by day.
 - **Fix one, fix them all.** Change a transaction's category and Expensly offers to move every other transaction from the same payee, and remember it for the future.
 - **Every merchant has a page** showing total spent, typical amount, how often you go, a six-month chart, and one-tap rename or re-file for all of them.
 
-### Budgets
+### Plan
+Home, Activity, Plan and Insights are the same four places on your phone and your computer. Plan holds your **Budgets** and your **Goals & net worth**, with a switch at the top. Ask AI is the ✦ button on your phone and in the sidebar on a computer, and Settings is the gear in the corner.
+
+#### Budgets
 - A bar for each category with a **pace marker**, so you can see whether you're ahead of or behind where you should be today.
 - Tap any budget to change it. The change carries forward to later months.
 - **Make your own categories** (Pet care, Gym, Kids…) with **＋ New category** on Budgets, or straight from a transaction's category chips. Pick a colour, say whether it's a need, a want or avoidable, and optionally give it a monthly budget. Up to 30. Deleting one moves its transactions to a category you choose, so nothing is lost.
@@ -120,14 +123,15 @@ Every transaction, grouped by day.
 - **Your income plan:** monthly income, whether salary has arrived, what you're on course to keep, and a daily allowance that still meets your savings goal.
 - **Needs, wants and savings** against the 50/30/20 guide.
 - **Unusual activity:** a charge much bigger than usual at a regular merchant, possible double charges, price rises on subscriptions, new merchants and fees.
+- **Subscriptions & bills:** every recurring payment Expensly has detected (rent, EMIs, SIPs, subscriptions), what each costs a year, and a warning when a price goes up.
 - **Trends:** categories vs their 3-month average, top merchants, weekday vs weekend spending, and which part of the month you spend most in.
 - **Month-end forecast:** what you've spent, plus your typical spending for each remaining day of the week, plus bills still due.
 
-### Wealth
-Net worth over time, your accounts, savings goals (with a celebration when you hit one), and every recurring payment Expensly has detected: rent, EMIs, SIPs and subscriptions.
+#### Goals & net worth
+Net worth over time, your accounts and savings goals (with a celebration when you hit one).
 
 ### Settings
-Your income, reminders, password, an iPhone Shortcut for forwarding bank SMS, **Re-categorise everything**, data export and account deletion.
+Reminders, password, a link to your income (set on Insights), an iPhone Shortcut for forwarding bank SMS, **Re-categorise everything**, data export and account deletion.
 
 ---
 

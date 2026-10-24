@@ -19,6 +19,7 @@ const ALERT_GLYPH: Record<Alert["kind"], [string, string]> = {
   unusual: ["▲", "var(--warn)"], duplicate: ["⧉", "var(--bad)"], new: ["✦", "var(--accent)"], price: ["↑", "var(--bad)"], fees: ["!", "var(--bad)"], big: ["●", "var(--accent)"],
 };
 const CADENCE: Record<string, string> = { weekly: "Weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
+const PER_YEAR: Record<string, number> = { weekly: 52, monthly: 12, quarterly: 4, yearly: 1 };
 
 function Spark({ values, color }: { values: number[]; color: string }) {
   const W = 72, H = 24, max = Math.max(1, ...values);
@@ -47,7 +48,10 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
   const inc = a.income;
   const cat = (id: string) => cats.find((c) => c.id === id);
   const spent = a.breakdown.reduce((s, b) => s + b.total, 0);
-  const recurMonthly = a.recurring.filter((r) => r.category_id !== "invest").reduce((s, r) => s + r.monthly, 0);
+  const bills = a.recurring.filter((r) => r.category_id !== "invest");
+  const recurMonthly = bills.reduce((s, r) => s + r.monthly, 0);
+  const recurYearly = bills.reduce((s, r) => s + r.amount * PER_YEAR[r.cadence], 0);
+  const rises = a.recurring.filter((r) => r.priceChange && r.priceChange.to > r.priceChange.from);
   // Percentages are of what you earn: the planned income, or what actually came in if that's more.
   const s = { ...a.split, income: Math.max(a.split.income, inc?.plan?.total ?? 0) }, base = Math.max(s.income, s.needs + s.wants + s.avoidable + s.savings, 1);
   const weekMax = Math.max(1, ...a.weekday.avg);
@@ -234,7 +238,13 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
 
         {/* recurring */}
         <section className="card ins-recur o6" id="recurring">
-          <div className="section-h"><h2>Subscriptions & bills</h2><span className="hint num">{inr(recurMonthly)}/mo · {inrCompact(recurMonthly * 12)}/yr</span></div>
+          <div className="section-h"><h2>Subscriptions & bills</h2><span className="hint num">{inr(recurMonthly)}/mo · {inrCompact(recurYearly)}/yr</span></div>
+          {rises.length > 0 && (
+            <div className="note warn" style={{ marginBottom: 8 }}>
+              <b>{rises.length === 1 ? `${rises[0].name} costs more now` : `${rises.length} prices went up`}</b>
+              {rises.map((r) => `${r.name}: ${inr(r.priceChange!.from)} → ${inr(r.priceChange!.to)}`).join(" · ")}. That&apos;s {inr(rises.reduce((s, r) => s + (r.priceChange!.to - r.priceChange!.from) * PER_YEAR[r.cadence], 0))} more a year.
+            </div>
+          )}
           {a.recurring.length ? (
             <div>
               {a.recurring.map((r) => {
@@ -249,7 +259,7 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
                     </span>
                     {r.priceChange && r.priceChange.to > r.priceChange.from && <span className="chip bad">▲ {inr(r.priceChange.to - r.priceChange.from)}</span>}
                     {r.dueSoon && !r.priceChange && <span className="chip warn">Soon</span>}
-                    <span className="num">{r.variable ? "~" : ""}{inr(r.amount)}</span>
+                    <span className="num sub-amt"><b>{r.variable ? "~" : ""}{inr(r.amount)}</b><small className="muted">{inrCompact(r.amount * PER_YEAR[r.cadence])}/yr</small></span>
                   </button>
                 );
               })}

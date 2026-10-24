@@ -54,7 +54,6 @@ export default async function HomePage() {
       setup={setup}
       cashflow={cashflow(tx, cats, today)}
       insights={merged}
-      cats={cats}
       sample={tx.some((t) => t.source === "sample")}
       brief={(cached?.content as Brief | undefined) ?? null}
       aiOn={!!aiProviderFor(user)}

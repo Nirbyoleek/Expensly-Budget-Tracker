@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { deleteEverything, loadSampleData, reclassifyAll, removeSampleData, signOut } from "@/app/actions";
 import { useApp } from "@/components/app";
 import Header from "@/components/Header";
-import IncomeForm from "@/components/IncomeForm";
 import PasswordCard from "./PasswordCard";
 import NotificationsCard from "./NotificationsCard";
 import HealthCard, { type HealthItem } from "./HealthCard";
 import type { IncomePlan } from "@/lib/income";
+import { inr } from "@/lib/money";
 
-export default function SettingsView({ email, hasSample, hasToken, origin, plan, seenSalary, notify, health }: { email: string; hasSample: boolean; hasToken: boolean; origin: string; plan?: IncomePlan | null; seenSalary?: number | null; notify: { budget: boolean; bills: boolean; weekly: boolean }; health?: HealthItem[] | null }) {
+export default function SettingsView({ email, hasSample, hasToken, origin, plan, notify, health }: { email: string; hasSample: boolean; hasToken: boolean; origin: string; plan?: IncomePlan | null; notify: { budget: boolean; bills: boolean; weekly: boolean }; health?: HealthItem[] | null }) {
   const { toast, openAdd, cats } = useApp();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -58,11 +58,11 @@ export default function SettingsView({ email, hasSample, hasToken, origin, plan,
 
       <PasswordCard email={email} />
 
-      <section className="card stack" id="income">
-        <h2>Your income</h2>
-        <p className="muted" style={{ fontSize: 14 }}>Your monthly take-home lets Expensly forecast savings, set a daily allowance, flag late salary and score your money health fairly. Change it any time; a raise can start next month without rewriting the past.</p>
-        <IncomeForm plan={plan ?? null} seenSalary={seenSalary} />
-      </section>
+      <Link href="/insights#income" className="card tile-link" id="income">
+        <span className="glyph-box" aria-hidden="true">₹</span>
+        <span><b>Your income</b><small>{plan ? `${inr(plan.total)} a month. Change it in Insights, next to your savings.` : "Add your monthly take-home in Insights for savings forecasts and a daily allowance."}</small></span>
+        <span aria-hidden="true">›</span>
+      </Link>
 
       <NotificationsCard prefs={notify} />
 

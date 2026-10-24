@@ -30,7 +30,7 @@ describe("reminders: edge cases", () => {
     const sub = ["2026-08-22", "2026-09-22"].map((d) => tx(d, -199, "subs", { merchant_name: "Netflix" }));
     const r = remindersFor({ ...base, today: "2026-10-21", tx: sub }).find((x) => x.key.startsWith("bill:"))!;
     expect(r.body).toContain("22nd");
-    expect(r.url).toBe("/wealth#recurring");
+    expect(r.url).toBe("/insights#recurring");
   });
 
   it("only sends the weekly summary on Mondays, and can be switched off", () => {

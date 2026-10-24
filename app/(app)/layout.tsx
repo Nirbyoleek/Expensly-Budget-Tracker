@@ -1,6 +1,7 @@
 import { AppProvider } from "@/components/app";
 import AddSheet from "@/components/AddSheet";
 import TabBar from "@/components/TabBar";
+import AskFab from "@/components/AskFab";
 import Sidebar from "@/components/Sidebar";
 import CommandPalette from "@/components/CommandPalette";
 import OfflineSync from "@/components/OfflineSync";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="app">{children}</main>
       </div>
       <TabBar />
+      <AskFab />
       <AddSheet />
       <CommandPalette />
       <OfflineSync />

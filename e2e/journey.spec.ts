@@ -54,6 +54,7 @@ test("uncategorised spend waits in To review until it gets a category", async ()
   await expect(page.getByText(/Pick a category to take this out/)).toBeVisible();
   await page.getByRole("radio", { name: "Food & dining" }).click();
   await page.getByRole("button", { name: /^Save( & approve)?$/ }).click();
+  await toast(/^Saved/); // leaving before the save lands would cancel it
   await page.goto("/activity?filter=review");
   await expect(page.locator(".tx").filter({ hasText: new RegExp(UNKNOWN, "i") })).toHaveCount(0);
 });
@@ -84,19 +85,25 @@ test("make a category of your own with a budget", async () => {
 test("insights: money health opens to show how to improve", async () => {
   await page.goto("/insights");
   await expect(page.getByRole("heading", { name: "Money health" })).toBeVisible();
-  const first = page.locator(".health-row").first();
-  await first.click();
-  await expect(page.locator(".health-detail").first()).toBeVisible();
+  // the weakest part starts open; open another one too
+  const part = await page.locator('.health-row[aria-expanded="false"]').first().getAttribute("aria-controls");
+  await page.locator(`.health-row[aria-controls="${part}"]`).click();
+  await expect(page.locator(`#${part}`)).toBeVisible();
   await expect(page.getByText("Full marks").first()).toBeVisible();
 });
 
 test("month in review, wealth and capture setup load", async () => {
   await page.goto("/review");
   await expect(page).toHaveURL(/\/review\/\d{4}-\d{2}$/);
-  await expect(page.getByText("Month in review").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Month in review" })).toBeVisible();
 
   await page.goto("/wealth");
   await expect(page.getByText("Net worth").first()).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Plan" })).toBeVisible();
+
+  // bills live on Insights now; old reminder links to /wealth#recurring still land there
+  await page.goto("/wealth#recurring");
+  await expect(page).toHaveURL(/\/insights#recurring$/);
   await expect(page.getByRole("heading", { name: /Subscriptions/ })).toBeVisible();
 
   await page.goto("/settings/capture");

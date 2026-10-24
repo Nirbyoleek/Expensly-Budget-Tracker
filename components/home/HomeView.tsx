@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CashFlow, CategoryDonut } from "@/components/charts/interactive";
+import { CashFlow } from "@/components/charts/interactive";
 import SafeHero from "./SafeHero";
 import DailySpending, { type DailyMonth } from "./DailySpending";
 import Header from "@/components/Header";
@@ -11,7 +11,6 @@ import type { Brief } from "@/app/ai-actions";
 import { inr } from "@/lib/money";
 import { monthLong } from "@/lib/dates";
 import type { Insight, MonthView, Recurring } from "@/lib/finance";
-import type { Category } from "@/lib/types";
 
 const TONE: Record<Insight["tone"], string> = { good: "var(--good)", bad: "var(--bad)", warn: "var(--accent-2)", info: "var(--accent)" };
 
@@ -21,14 +20,11 @@ export default function HomeView(props: {
   daily: DailyMonth[];
   setup?: { hasData: boolean; hasIncome: boolean; hasBudgets: boolean; hasReminders: boolean } | null;
   insights: Insight[];
-  cats: Category[];
   sample: boolean;
   brief?: Brief | null;
   aiOn?: boolean;
 }) {
-  const { v, cats } = props;
-  const catById = Object.fromEntries(cats.map((c) => [c.id, c]));
-  const slices = Object.entries(v.spentByCat).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  const { v } = props;
 
   const insightsBlock = (
     <section className="o2">
@@ -75,14 +71,6 @@ export default function HomeView(props: {
 
           <MoneyInOut className="o3" inflow={v.moneyIn} gross={v.grossSpent} net={v.spent} />
 
-          <section className="card o3">
-            <div className="section-h"><h2>Where it went</h2><Link className="link" href="/budgets">Budgets</Link></div>
-            {slices.length ? (
-              <CategoryDonut slices={slices.map(([k, n]) => ({ id: k, name: catById[k]?.name ?? k, color: catById[k]?.color ?? "var(--muted)", value: n }))} />
-            ) : (
-              <p className="empty">No spending yet this month.</p>
-            )}
-          </section>
 
           <section className="card o5">
             <div className="section-h">
@@ -96,7 +84,7 @@ export default function HomeView(props: {
         <div className="col-full">
           {v.upcomingBills.length > 0 && (
             <section className="o6">
-              <div className="section-h"><h2>Coming up</h2><Link className="link" href="/wealth#recurring">All recurring</Link></div>
+              <div className="section-h"><h2>Coming up</h2><Link className="link" href="/insights#recurring">All recurring</Link></div>
               <div className="rail bills-rail">
                 {v.upcomingBills.map((r, i) => {
                   const inDays = r.day - v.day;

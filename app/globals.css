@@ -62,6 +62,7 @@ body {
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sheet .in:focus { outline: none; }
 [hidden] { display: none !important; }
 
 .aura {
@@ -107,13 +108,15 @@ p { margin: 0; }
 
 /* header */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand > div { min-width: 0; }
+.sample-note { color: var(--accent-2); text-decoration: none; }
 .logo { width: 36px; height: 36px; border-radius: 11px; background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--accent)); display: grid; place-items: center; color: #0b0e18; font: 800 17px var(--display); flex: none; }
 .brand h1 { font-size: 22px; }
-.brand small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-top: -2px; }
+.brand small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-top: -2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--muted); }
 .icon-btn svg { width: 18px; height: 18px; }
-.tag { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); border: 1px solid color-mix(in srgb, var(--accent-2) 50%, transparent); border-radius: 99px; padding: 4px 9px; }
+.tag { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); border: 1px solid color-mix(in srgb, var(--accent-2) 50%, transparent); border-radius: 99px; padding: 4px 9px; white-space: nowrap; }
 
 /* hero */
 .hero { position: relative; border-radius: 28px; padding: 22px 20px 18px; overflow: hidden; border: 1px solid var(--line-2);
@@ -189,6 +192,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-2); border-radius: 14px; padding: 4px; }
 .seg button { border: 0; background: none; padding: 9px 6px; border-radius: 10px; font: 800 13px var(--body); color: var(--muted); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); }
+.seg a { padding: 9px 6px; border-radius: 10px; font: 800 13px var(--body); color: var(--muted); text-align: center; text-decoration: none; }
+.seg a[aria-current="page"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); }
+.plan-tabs { max-width: 420px; margin-bottom: 16px; }
 .catgrid { display: flex; flex-wrap: wrap; gap: 6px; }
 .catgrid button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 7px 12px; font: 700 12.5px var(--body); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .catgrid button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -238,7 +244,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .tile-btn { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 18px; padding: 14px; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; }
 .tile-btn b { font: 700 15px var(--display); display: block; }
 .tile-btn small { color: var(--muted); font-size: 12px; }
-.glyph-box { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font: 800 15px var(--display); flex: none; }
+.glyph-box { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font: 800 15px var(--display); flex: none; background: var(--accent-soft); color: var(--accent); }
+/* error text can carry long URLs */
+[role="alert"] p { overflow-wrap: anywhere; }
 
 /* ask */
 .ask { display: flex; gap: 8px; }
@@ -257,19 +265,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .tab svg { width: 22px; height: 22px; }
 .tab[aria-current="page"] { color: var(--fg); }
 .tab[aria-current="page"] svg { color: var(--accent); }
-button.tab { background: none; border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-/* the AI gets a little colour so it reads as a feature, not just another page */
-.tab-ai svg { color: var(--accent-2); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-2) 45%, transparent)); }
-.tab-ai { color: color-mix(in srgb, var(--accent-2) 55%, var(--muted)); }
-.tab-ai[aria-current="page"] { color: var(--fg); }
-.more-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 6px; }
-.more-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 18px; background: color-mix(in srgb, var(--surface-2) 75%, transparent); border: 1px solid var(--line); color: var(--fg); text-decoration: none; transition: transform .15s var(--spring), border-color .15s; }
-.more-tile:active { transform: scale(0.97); }
-.more-tile[aria-current="page"] { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
-.more-tile b { font-size: 15px; margin-top: 6px; }
-.more-tile small { font-size: 12px; line-height: 1.35; color: var(--muted); }
-.more-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
-.more-ic svg { width: 21px; height: 21px; }
 .fab { width: 52px; height: 52px; border-radius: 17px; border: 0; margin: 0 auto; display: grid; place-items: center; color: #fff; cursor: pointer;
   background: linear-gradient(140deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #000));
   box-shadow: 0 10px 24px -8px var(--glow), 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent); transition: transform 0.15s; }

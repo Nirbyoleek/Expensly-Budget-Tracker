@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { contributeToGoal, createGoal, deleteAccount, deleteGoal, saveAccount, setGoalLink } from "@/app/actions";
 import { CatIcon, CountUp, Sheet, useApp } from "@/components/app";
 import { Ring } from "@/components/charts";
 import { TrendScrubber } from "@/components/charts/interactive";
 import Header from "@/components/Header";
+import PlanTabs from "@/components/PlanTabs";
 import { inr, inrCompact, toPaise } from "@/lib/money";
 import { monthShort, shortDate } from "@/lib/dates";
-import type { RecurringItem } from "@/lib/analytics";
 import type { Account, AccountType, Goal } from "@/lib/types";
 
 const TYPE_LABEL: Record<AccountType, string> = { bank: "Bank", card: "Credit cards", investment: "Investments", cash: "Cash", loan: "Loans" };
 const TYPE_COLOR: Record<AccountType, string> = { bank: "#3B8BF6", card: "#F2683C", investment: "#7D8EFF", cash: "#E8A00B", loan: "#E8508A" };
 type GoalProg = { saved: number; auto: number; count: number; last: string | null };
-const CADENCE: Record<RecurringItem["cadence"], string> = { weekly: "Weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
-const PER_YEAR: Record<RecurringItem["cadence"], number> = { weekly: 52, monthly: 12, quarterly: 4, yearly: 1 };
 
 const GOAL_COLORS = ["#E8A00B", "#2FB673", "#3B8BF6", "#E8508A", "#7D8EFF", "#12B5B0"];
 
@@ -25,11 +23,13 @@ export default function WealthView(props: {
   goals: Goal[];
   trend: { month: string; value: number }[];
   progress: Record<string, GoalProg>;
-  subscriptions: RecurringItem[];
-  todayIso: string;
   sample: boolean;
 }) {
-  const { cats } = useApp();
+  const router = useRouter();
+  // Bills used to live here; reminders already sent still link to /wealth#recurring.
+  useEffect(() => {
+    if (window.location.hash === "#recurring") router.replace("/insights#recurring");
+  }, [router]);
   const [sheet, setSheet] = useState<{ kind: "account"; account?: Account } | { kind: "goal"; goal?: Goal } | null>(null);
   const assets = props.accounts.filter((a) => a.balance_paise > 0).reduce((s, a) => s + a.balance_paise, 0);
   const liabilities = -props.accounts.filter((a) => a.balance_paise < 0).reduce((s, a) => s + a.balance_paise, 0);
@@ -37,16 +37,12 @@ export default function WealthView(props: {
   const prev = props.trend.length > 1 ? props.trend[props.trend.length - 2].value : null;
   const change = prev !== null ? total - prev : null;
   const groups = (Object.keys(TYPE_LABEL) as AccountType[]).map((t) => [t, props.accounts.filter((a) => a.type === t)] as const).filter(([, l]) => l.length);
-  const subs = props.subscriptions;
-  const recurTotal = subs.reduce((s, r) => s + r.monthly, 0);
-  const yearTotal = subs.reduce((s, r) => s + r.amount * PER_YEAR[r.cadence], 0);
-  const rises = subs.filter((r) => r.priceChange && r.priceChange.to > r.priceChange.from);
   const prog = (g: Goal) => props.progress[g.id] ?? { saved: g.saved_paise, auto: 0, count: 0, last: null };
-  const catById = Object.fromEntries(cats.map((c) => [c.id, c]));
 
   return (
     <>
-      <Header title="Wealth" sample={props.sample} />
+      <Header title="Plan" sample={props.sample} />
+      <PlanTabs />
 
       <div className="dash wealth-dash">
       <div className="col">
@@ -106,30 +102,6 @@ export default function WealthView(props: {
         )) : <p className="empty">Add your bank accounts, cards and investments to see your net worth. Balances are entered by hand and stay private.</p>}
       </section>
 
-      <section className="card o4" id="recurring">
-        <div className="section-h"><h2>Subscriptions &amp; bills</h2><span className="hint num">{inr(recurTotal)}/mo · {inrCompact(yearTotal)}/yr</span></div>
-        {rises.length > 0 && (
-          <div className="note warn" style={{ marginBottom: 8 }}>
-            <b>{rises.length === 1 ? `${rises[0].name} costs more now` : `${rises.length} prices went up`}</b>
-            {rises.map((r) => `${r.name}: ${inr(r.priceChange!.from)} → ${inr(r.priceChange!.to)}`).join(" · ")}. That&apos;s {inr(rises.reduce((s, r) => s + (r.priceChange!.to - r.priceChange!.from) * PER_YEAR[r.cadence], 0))} more a year.
-          </div>
-        )}
-        {subs.length ? subs.map((r) => {
-          const until = Math.round((Date.parse(r.next) - Date.parse(props.todayIso)) / 86400000);
-          const up = !!r.priceChange && r.priceChange.to > r.priceChange.from;
-          return (
-            <div key={r.key} className="list-row sub-row">
-              <CatIcon name={r.name} color={catById[r.category_id]?.color ?? "var(--muted)"} size="sm" />
-              <div className="grow">
-                <b className="ellipsis">{r.name}</b>
-                <small className="muted">{CADENCE[r.cadence]} · last {shortDate(r.last)} · {until < 0 ? `was due ${shortDate(r.next)}` : until === 0 ? "due today" : until === 1 ? "due tomorrow" : `next ${shortDate(r.next)}`}</small>
-              </div>
-              {up ? <span className="chip bad">▲ {inr(r.priceChange!.to - r.priceChange!.from)}</span> : r.dueSoon ? <span className="chip warn">Soon</span> : null}
-              <span className="num sub-amt"><b>{r.variable ? "~" : ""}{inr(r.amount)}</b><small className="muted">{inrCompact(r.amount * PER_YEAR[r.cadence])}/yr</small></span>
-            </div>
-          );
-        }) : <p className="empty">Subscriptions, SIPs and bills appear here once the same charge shows up twice on a regular schedule.</p>}
-      </section>
 
 
       </div>

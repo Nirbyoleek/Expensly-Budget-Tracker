@@ -13,7 +13,7 @@ export default function Header({ title, subtitle, sample }: { title: string; sub
         <div className="logo" aria-hidden="true">E</div>
         <div>
           <h1>Expensly</h1>
-          <small>{subtitle ? (title === "Overview" ? subtitle : `${title} · ${subtitle}`) : title}</small>
+          <small>{subtitle ? (title === "Overview" ? subtitle : `${title} · ${subtitle}`) : title}{sample && <Link href="/settings" className="sample-note"> · Sample data</Link>}</small>
         </div>
       </div>
       <div className="page-title only-desktop">
@@ -21,7 +21,7 @@ export default function Header({ title, subtitle, sample }: { title: string; sub
         <h1>{title}</h1>
       </div>
       <div className="top-actions">
-        {sample && <Link href="/settings" className="tag" title="Remove it in Settings">Sample data</Link>}
+        {sample && <Link href="/settings" className="tag only-desktop" title="Remove it in Settings">Sample data</Link>}
         <PaletteButton variant="icon" />
         <AddButton />
         <NotificationBell />
