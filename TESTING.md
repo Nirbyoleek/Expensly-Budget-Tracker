@@ -56,3 +56,32 @@ npm run smoke -- http://localhost:3000 # local
 ```
 
 17 checks: public pages load; private pages redirect to sign-in; export, notifications, AI chat, the daily job and SMS ingest all refuse unauthenticated calls; the service worker, manifest, icons and PDF worker are served; and no secrets appear in page source.
+
+## End-to-end journey (Playwright)
+
+`e2e/journey.spec.ts` walks through Expensly as one new person, signed in: sign up → quick add →
+give an uncategorised spend a category → import the sample statement → make a category with a
+budget → Insights, Month in review, Wealth, iPhone capture setup → export → delete the account.
+
+```bash
+npm install --no-save @playwright/test@1.56.0 && npx playwright install chromium
+E2E_BASE_URL=https://your-deployment.vercel.app npx playwright test
+```
+
+It signs up a throwaway `e2e-…@expensly.test` account. Those accounts never use AI, are left out of
+the usage numbers and reminders, and the daily job deletes any older than two hours that a failed run
+left behind.
+
+## Automatic deploys
+
+Every push to `main` runs typecheck, unit tests and a production build. If those pass and the
+`VERCEL_TOKEN` repository secret is set, CI then:
+
+1. builds for production and deploys it **without taking traffic**,
+2. runs the end-to-end journey against that exact deployment,
+3. only then points the live domain at it (`vercel promote`), and
+4. smoke-tests the live site.
+
+A failing step stops the release and the live site keeps the previous version. If Vercel deployment
+protection is on, also add `VERCEL_AUTOMATION_BYPASS_SECRET`. `npm run deploy` still works for a manual
+deploy from your Mac.
