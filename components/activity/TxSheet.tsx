@@ -72,6 +72,7 @@ export default function TxSheet({ tx, onClose, onDelete, startWithDelete, onMerc
       <div className="lbl">CATEGORY</div>
       <CategoryPickerWithNew value={cat} onChange={(c) => { setCat(c); setSub(null); if (c === "income") setMoneyIn(true); }} />
       <SubPicker category={cat} value={sub} onChange={setSub} />
+      {cat === "uncat" && <p className="hint warn-text">Pick a category to take this out of “To review”. None fit? Use ＋ New category.</p>}
       {why && cat === tx.category_id && (
         <div className="note" style={{ fontSize: 12 }}>
           <b>Why {label}?</b>

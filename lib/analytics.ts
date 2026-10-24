@@ -341,7 +341,23 @@ export function forecastMonth(tx: Transaction[], cats: Category[], today: string
 
 /* ───────────────────────── financial health ───────────────────────── */
 
-export type HealthPart = { id: string; label: string; score: number; max: number; note: string };
+export type HealthStatus = "great" | "ok" | "work" | "unknown";
+export type HealthPart = {
+  id: string; label: string; score: number; max: number;
+  /** Where you are, in plain words. */
+  note: string;
+  /** The headline figure, e.g. "−57%" or "5.7×". */
+  value: string;
+  /** What full marks looks like. */
+  target: string;
+  /** One concrete thing to do next, when there's something to do. */
+  fix: string | null;
+  href: string | null;
+  action: string | null;
+  status: HealthStatus;
+};
+
+const statusOf = (score: number, max: number, known = true): HealthStatus => (!known ? "unknown" : score >= max * 0.8 ? "great" : score >= max * 0.4 ? "ok" : "work");
 
 export function healthScore(args: { tx: Transaction[]; cats: Category[]; budgetRows: BudgetRow[]; today: string; forecast: number; plan?: IncomePlan | null }) {
   const { tx, cats, today } = args;
@@ -355,41 +371,110 @@ export function healthScore(args: { tx: Transaction[]; cats: Category[]; budgetR
   const spentAll = cur.needs + cur.wants + cur.avoidable;
   const parts: HealthPart[] = [];
   const clamp = (x: number) => Math.max(0, Math.min(1, x));
+  const pctTxt = (x: number) => `${x < 0 ? "−" : ""}${Math.abs(Math.round(x * 100))}%`;
 
-  // Savings rate over the last full month, where it's reliable
-  const last = splits[1];
-  const lastSpent = last.needs + last.wants + last.avoidable;
+  // 1. Savings: this month against your goal when you've told us your income, else last month.
   if (plan) {
-    // With a plan, judge this month against your own savings goal.
     const goal = Math.max(0.05, plan.savings_goal_pct / 100);
-    const r = (income - args.forecast) / income;
-    parts.push({ id: "save", label: "Savings rate", max: 30, score: Math.round(30 * clamp(r / goal)), note: `On course to keep ${Math.round(r * 100)}% of ${fmt(income)} this month. Your goal is ${plan.savings_goal_pct}%.` });
+    const left = income - args.forecast;
+    const r = left / income;
+    const score = Math.round(30 * clamp(r / goal));
+    const cut = Math.max(0, Math.round(goal * income - left));
+    parts.push({
+      id: "save", label: "Savings rate", max: 30, score, status: statusOf(score, 30), value: pctTxt(r), target: `Keep ${plan.savings_goal_pct}% (${fmt(goal * income)})`,
+      note: left < 0 ? `On course to spend ${fmt(-left)} more than your ${fmt(income)} income this month.` : `On course to keep ${fmt(left)} of ${fmt(income)} this month.`,
+      fix: score >= 30 ? null : `Spend ${fmt(cut)} less this month to reach your goal.`,
+      href: "/insights#categories", action: "See where it's going",
+    });
   } else {
+    const last = splits[1];
+    const lastSpent = last.needs + last.wants + last.avoidable;
     const rate = last.income > 0 ? (last.income - lastSpent) / last.income : null;
-    parts.push({ id: "save", label: "Savings rate", max: 30, score: rate === null ? 15 : Math.round(30 * clamp(rate / 0.25)), note: rate === null ? "Add your monthly income to see this" : `${Math.round(rate * 100)}% of last month's income kept. 25% or more scores full marks.` });
+    const score = rate === null ? 15 : Math.round(30 * clamp(rate / 0.25));
+    parts.push({
+      id: "save", label: "Savings rate", max: 30, score, status: statusOf(score, 30, rate !== null), value: rate === null ? "—" : pctTxt(rate), target: "Keep 25% or more",
+      note: rate === null ? "Expensly doesn't know your income yet, so this is a neutral guess." : rate < 0 ? `Last month you spent ${fmt(lastSpent - last.income)} more than came in.` : `Last month you kept ${fmt(last.income - lastSpent)} of ${fmt(last.income)}.`,
+      fix: rate === null ? "Add your monthly income to score this properly." : score >= 30 ? null : "Set a savings goal so Expensly can pace your spending.",
+      href: "/insights#income", action: rate === null ? "Add income" : "Set a goal",
+    });
   }
 
+  // 2. Budget pace: only categories that have a budget, so spending elsewhere can't sink it.
   const budgets = resolveBudgets(args.budgetRows, cats, month);
-  const budgetTotal = sum(Object.values(budgets));
-  const ratio = budgetTotal ? args.forecast / budgetTotal : null;
-  parts.push({ id: "budget", label: "Budget pace", max: 20, score: ratio === null ? 10 : Math.round(20 * clamp((1.4 - ratio) / 0.4)), note: ratio === null ? "Set budgets to see this" : `On track to use ${Math.round(ratio * 100)}% of your budget.` });
+  const spentNow = spentByCategory(inMonth(tx, month), cats);
+  const budgeted = Object.keys(budgets).filter((id) => budgets[id] > 0);
+  const budgetTotal = sum(budgeted.map((id) => budgets[id]));
+  const spentNowTotal = sum(Object.values(spentNow));
+  const scale = spentNowTotal > 0 ? Math.max(1, args.forecast / spentNowTotal) : 1; // how much more the month is likely to add
+  const projected = sum(budgeted.map((id) => spentNow[id] ?? 0)) * scale;
+  const ratio = budgetTotal ? projected / budgetTotal : null;
+  const over = budgeted.filter((id) => (spentNow[id] ?? 0) > budgets[id]).map((id) => cats.find((c) => c.id === id)?.name ?? id);
+  const outside = sum(Object.entries(spentNow).filter(([id]) => !(budgets[id] > 0)).map(([, v]) => v));
+  {
+    const score = ratio === null ? 10 : Math.round(20 * clamp((1.4 - ratio) / 0.4));
+    parts.push({
+      id: "budget", label: "Budget pace", max: 20, score, status: statusOf(score, 20, ratio !== null),
+      value: ratio === null ? "—" : ratio >= 2 ? `${ratio.toFixed(1)}×` : pctTxt(ratio), target: "Finish at or under budget",
+      note: ratio === null ? "No budgets set yet." : `Heading for ${fmt(projected)} against ${fmt(budgetTotal)} budgeted${over.length ? `; ${over.slice(0, 2).join(" and ")}${over.length > 2 ? ` +${over.length - 2}` : ""} already over` : ""}.${outside > 0 ? ` ${fmt(outside)} more went to categories with no budget.` : ""}`,
+      fix: ratio === null ? "Set budgets for the categories you spend most in." : ratio > 1 ? (budgetTotal < spentNowTotal * 0.5 ? "Your budgets cover only part of your spending. Set realistic ones for every big category." : "Slow down in the categories that are over, or raise budgets that were set too low.") : null,
+      href: "/budgets", action: ratio === null ? "Set budgets" : "Open budgets",
+    });
+  }
 
-  const feeShare = spentAll ? cur.avoidable / spentAll : 0;
-  parts.push({ id: "fees", label: "Avoidable fees", max: 15, score: Math.round(15 * clamp(1 - feeShare / 0.03)), note: cur.avoidable ? `${fmt(cur.avoidable)} in interest and charges this month.` : "No interest or late fees this month." });
+  // 3. Fees and interest: money that buys nothing.
+  {
+    const feeShare = spentAll ? cur.avoidable / spentAll : 0;
+    const score = Math.round(15 * clamp(1 - feeShare / 0.03));
+    parts.push({
+      id: "fees", label: "Avoidable fees", max: 15, score, status: statusOf(score, 15), value: cur.avoidable ? fmt(cur.avoidable) : "₹0", target: "Under 3% of spending",
+      note: cur.avoidable ? `${fmt(cur.avoidable)} in interest, late fees and charges this month (${pctTxt(feeShare)} of spending).` : "No interest or late fees this month.",
+      fix: cur.avoidable ? "Pay card bills in full by the due date and turn on autopay for the minimum, so interest never starts." : null,
+      href: "/activity?cat=fees", action: cur.avoidable ? "See the charges" : null,
+    });
+  }
 
-  const wantsShare = income ? cur.wants / income : null;
-  parts.push({ id: "wants", label: "Wants vs income", max: 15, score: wantsShare === null ? 8 : Math.round(15 * clamp((0.5 - wantsShare) / 0.2)), note: wantsShare === null ? "Add your monthly income to see this" : `Wants are ${Math.round(wantsShare * 100)}% of income. Under 30% scores full marks.` });
+  // 4. Wants against income.
+  {
+    const share = income ? cur.wants / income : null;
+    const score = share === null ? 8 : Math.round(15 * clamp((0.5 - share) / 0.2));
+    parts.push({
+      id: "wants", label: "Wants vs income", max: 15, score, status: statusOf(score, 15, share !== null), value: share === null ? "—" : pctTxt(share), target: "Under 30% of income",
+      note: share === null ? "Add your income to see this." : share >= 1 ? `${fmt(cur.wants)} on wants, more than your whole ${fmt(income)} income.` : `${fmt(cur.wants)} on wants so far, out of ${fmt(income)} income.`,
+      fix: share === null ? "Add your monthly income." : share > 0.3 ? `Bring wants down by ${fmt(cur.wants - income * 0.3)} to get full marks.` : null,
+      href: share === null ? "/insights#income" : "/insights#categories", action: share === null ? "Add income" : "See your wants",
+    });
+  }
 
-  const invested = splits.slice(0, 3).filter((s) => s.savings > 0).length;
-  parts.push({ id: "invest", label: "Investing", max: 10, score: Math.round((10 * invested) / 3), note: invested ? `Invested in ${invested} of the last 3 months.` : "No SIPs or investments seen yet." });
+  // 5. Investing in each of the last three months.
+  {
+    const invested = splits.slice(0, 3).filter((s) => s.savings > 0).length;
+    const score = Math.round((10 * invested) / 3);
+    parts.push({
+      id: "invest", label: "Investing", max: 10, score, status: statusOf(score, 10), value: `${invested} of 3 months`, target: "Invest every month",
+      note: invested ? `You invested in ${invested} of the last 3 months.` : "No SIPs or investments seen in the last 3 months.",
+      fix: invested === 3 ? null : invested ? "Make it automatic with a monthly SIP." : "Start a monthly SIP, even ₹500, and point a goal at it.",
+      href: "/wealth", action: invested === 3 ? null : "Set up a goal",
+    });
+  }
 
-  const recent = tx.filter((t) => t.date >= addMonths(month, -1));
-  const unreviewed = recent.filter((t) => !t.reviewed).length;
-  parts.push({ id: "review", label: "Up to date", max: 10, score: Math.round(10 * clamp(1 - unreviewed / Math.max(10, recent.length * 0.2))), note: unreviewed ? `${unreviewed} transaction${unreviewed > 1 ? "s" : ""} waiting for review.` : "Everything reviewed." });
+  // 6. Keeping up: transactions waiting for a look.
+  {
+    const recent = tx.filter((t) => t.date >= addMonths(month, -1));
+    const unreviewed = recent.filter((t) => !t.reviewed).length;
+    const score = Math.round(10 * clamp(1 - unreviewed / Math.max(10, recent.length * 0.2)));
+    parts.push({
+      id: "review", label: "Up to date", max: 10, score, status: statusOf(score, 10), value: unreviewed ? `${unreviewed} to check` : "All done", target: "Nothing waiting",
+      note: unreviewed ? `${unreviewed} transaction${unreviewed > 1 ? "s" : ""} waiting for a quick check.` : "Everything is reviewed.",
+      fix: unreviewed ? "A minute of swiping keeps every number here accurate." : null,
+      href: "/activity?filter=review", action: unreviewed ? "Review now" : null,
+    });
+  }
 
   const score = sum(parts.map((p) => p.score));
   const label = score >= 80 ? "Excellent" : score >= 65 ? "Healthy" : score >= 45 ? "Fair" : "Needs attention";
-  return { score, label, parts };
+  // The single change worth the most points.
+  const top = [...parts].filter((p) => p.fix && p.max - p.score > 0).sort((a, b) => b.max - b.score - (a.max - a.score))[0] ?? null;
+  return { score, label, parts, top: top ? { id: top.id, label: top.label, gain: top.max - top.score, fix: top.fix!, href: top.href, action: top.action } : null };
 }
 
 /* ───────────────────────── the month in words ───────────────────────── */
@@ -440,6 +525,12 @@ export function analyse(args: { tx: Transaction[]; cats: Category[]; budgetRows:
   const streaks = noSpendStreaks(tx, cats, today);
   const forecast = forecastMonth(tx, cats, today, recurring);
   const health = healthScore({ tx, cats, budgetRows, today, forecast: forecast.total, plan });
+  // Last month's score, judged on how the month actually ended, for a "since last month" arrow.
+  const prevEnd = shiftDays(month, -1), prevMonth = monthStart(prevEnd);
+  const prevSpent = sum(Object.values(spentByCategory(inMonth(tx, prevMonth), cats)));
+  const healthPrev = tx.some((t) => t.date.startsWith(prevMonth.slice(0, 7)))
+    ? healthScore({ tx: tx.filter((t) => t.date <= prevEnd), cats, budgetRows, today: prevEnd, forecast: Math.max(0, prevSpent), plan: resolvePlan(args.incomePlans ?? [], prevMonth) }).score
+    : null;
   const split = needsWants(tx, cats, month);
   const income: IncomeStatus | null = plan
     ? incomeStatus({ plan, tx, today, forecastTotal: forecast.total, spentSoFar: forecast.spent, invested: split.savings, dueBills: forecast.dueTotal })
@@ -456,7 +547,7 @@ export function analyse(args: { tx: Transaction[]; cats: Category[]; budgetRows:
     );
     if (!income.salaryArrived && income.daysToPayday !== null) story.push(`Salary is due in ${income.daysToPayday} day${income.daysToPayday === 1 ? "" : "s"}; it hasn't shown up in your statements yet.`);
   }
-  return { income, breakdown, merchants, recurring, alerts, fees, weekday, thirds, streaks, forecast, health, split, splitLast, biggest, story };
+  return { income, breakdown, merchants, recurring, alerts, fees, weekday, thirds, streaks, forecast, health, healthPrev, split, splitLast, biggest, story };
 }
 
 export type Analysis = ReturnType<typeof analyse>;

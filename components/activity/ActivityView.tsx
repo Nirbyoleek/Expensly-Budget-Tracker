@@ -102,7 +102,17 @@ export default function ActivityView({ tx, initial, aiOn, allMonths = [] }: { tx
     return out;
   }, [list]);
 
-  const approve = (ids: string[]) => {
+  // Uncategorised rows can't just be approved: they stay in review until they get a category.
+  const approve = (all: string[]) => {
+    const uncat = new Set(rows.filter((t) => t.category_id === "uncat").map((t) => t.id));
+    const ids = all.filter((id) => !uncat.has(id));
+    const skipped = all.length - ids.length;
+    if (!ids.length) {
+      if (all.length === 1) { setEditing({ id: all[0] }); toast("Pick a category for this one first."); }
+      else if (skipped) toast(`${skipped} uncategorised transaction${skipped === 1 ? " needs" : "s need"} a category. Tap each to choose one.`);
+      return;
+    }
+    if (skipped) toast(`Approved ${ids.length}. ${skipped} uncategorised still need${skipped === 1 ? "s" : ""} a category.`);
     const left = rows.filter((t) => !t.reviewed && !ids.includes(t.id)).length;
     if (toReview > 0 && left === 0) {
       celebrate();
@@ -245,12 +255,12 @@ export default function ActivityView({ tx, initial, aiOn, allMonths = [] }: { tx
                     {!t.reviewed && <span className="review" title="Needs review" />}
                     {!t.reviewed && (
                       <button
-                        className="row-approve"
+                        className={`row-approve${t.category_id === "uncat" ? " pick" : ""}`}
                         onPointerDown={(e) => e.stopPropagation()}
                         onPointerUp={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); approve([t.id]); }}
+                        onClick={(e) => { e.stopPropagation(); if (t.category_id === "uncat") setEditing({ id: t.id }); else approve([t.id]); }}
                       >
-                        ✓ Approve
+                        {t.category_id === "uncat" ? "Choose category" : "✓ Approve"}
                       </button>
                     )}
                     <div className={`amt num${t.amount_paise > 0 ? " in" : ""}`}>{t.amount_paise > 0 ? "+" : "−"}{inr(t.amount_paise)}</div>

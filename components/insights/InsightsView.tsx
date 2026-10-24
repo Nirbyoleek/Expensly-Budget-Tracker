@@ -5,9 +5,9 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import MerchantSheet from "@/components/MerchantSheet";
 import IncomeForm from "@/components/IncomeForm";
+import HealthCard from "./HealthCard";
 import type { IncomePlan } from "@/lib/income";
 import { CountUp, Sheet, useApp } from "@/components/app";
-import { Ring } from "@/components/charts";
 import { WEEKDAY_SHORT, type Alert, type Analysis, type CategoryBreakdown } from "@/lib/analytics";
 import { addMonths, monthLong, monthShort, monthStart, shortDate } from "@/lib/dates";
 import { inr, inrCompact } from "@/lib/money";
@@ -15,7 +15,6 @@ import { TAXONOMY_BY_ID, subName } from "@/lib/taxonomy";
 import type { Transaction } from "@/lib/types";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const SCORE_COLOR = (s: number) => (s >= 80 ? "var(--good)" : s >= 65 ? "var(--accent)" : s >= 45 ? "var(--warn)" : "var(--bad)");
 const ALERT_GLYPH: Record<Alert["kind"], [string, string]> = {
   unusual: ["▲", "var(--warn)"], duplicate: ["⧉", "var(--bad)"], new: ["✦", "var(--accent)"], price: ["↑", "var(--bad)"], fees: ["!", "var(--bad)"], big: ["●", "var(--accent)"],
 };
@@ -66,27 +65,10 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
       <div className="ins-grid">
         <div className="ins-col">
         {/* health */}
-        <section className="card ins-health o1">
-          <div className="section-h"><h2>Money health</h2><span className="hint">Updated as you spend</span></div>
-          <div className="health-top">
-            <div className="health-ring">
-              <Ring value={a.health.score / 100} color={SCORE_COLOR(a.health.score)} size={128} width={11} />
-              <div><b className="num">{a.health.score}</b><span>{a.health.label}</span></div>
-            </div>
-            <ul className="health-parts">
-              {a.health.parts.map((p, i) => (
-                <li key={p.id} title={p.note}>
-                  <div className="row"><span>{p.label}</span><span className="num hint">{p.score}/{p.max}</span></div>
-                  <div className="bar thin"><i className="m-fill" style={{ width: pct(p.score / p.max), background: SCORE_COLOR((p.score / p.max) * 100), animationDelay: `${i * 70}ms` }} /></div>
-                  <small>{p.note}</small>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+        <HealthCard health={a.health} prev={a.healthPrev} month={addMonths(monthStart(today), -1)} />
 
         {/* income */}
-        <section className="card ins-income o2">
+        <section className="card ins-income o2" id="income">
           <div className="section-h"><h2>Income & savings</h2><button className="link" onClick={() => setEditIncome(true)}>{inc ? "Edit" : "Add income"}</button></div>
           {inc ? (
             <>
@@ -168,7 +150,7 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
         </section>
 
         {/* categories with subcategories */}
-        <section className="card ins-break o5">
+        <section className="card ins-break o5" id="categories">
           <div className="section-h"><h2>Where it went</h2><span className="hint num">{inr(spent)} this month</span></div>
           <div className="breakdown">
             {a.breakdown.map((b) => <BreakdownRow key={b.id} b={b} spent={spent} open={open === b.id} onToggle={() => setOpen(open === b.id ? null : b.id)} onMerchant={setMerchant} />)}
