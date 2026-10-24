@@ -8,6 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
     "deploy": "bash scripts/deploy.sh",
     "reset-password": "node scripts/reset-password.mjs",

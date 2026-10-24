@@ -336,7 +336,8 @@ This logs in to Vercel if needed, copies the variables above from `.env.local` t
 | Command | |
 | --- | --- |
 | `npm run dev` | Local development |
-| `npm test` | Unit tests (Vitest): statement parsers, categoriser, finance maths, reminders |
+| `npm test` | 270+ unit tests (Vitest): parsers, categoriser, finance maths, AI failover, reminders, push. See [TESTING.md](TESTING.md) |
+| `npm run smoke` | Smoke tests against the live site (or pass a URL) |
 | `npm run typecheck` | TypeScript |
 | `npm run deploy` | Deploy to Vercel |
 | `npm run setup-push` | Generate web-push keys and the cron secret into `.env.local` |
