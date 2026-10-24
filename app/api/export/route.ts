@@ -17,6 +17,8 @@ export async function GET(req: Request) {
     const out: Record<string, unknown> = { exported_at: new Date().toISOString(), email: user.email, account_created: user.created_at };
     const { data: profile } = await supabase.from("profiles").select("name,month_start_day,notify_budget,notify_bills,notify_weekly,created_at").eq("id", user.id).maybeSingle();
     out.profile = profile;
+    const { data: ownCats } = await supabase.from("categories").select("id,name,color,grp,default_budget_paise").eq("user_id", user.id);
+    out.my_categories = ownCats ?? [];
     for (const t of TABLES) {
       const rows: unknown[] = [];
       for (let offset = 0; ; offset += 1000) {
@@ -32,6 +34,8 @@ export async function GET(req: Request) {
     });
   }
 
+  const { data: ownCats } = await supabase.from("categories").select("id,name").eq("user_id", user.id);
+  const names = Object.fromEntries((ownCats ?? []).map((c) => [c.id as string, c.name as string]));
   const lines = [CSV_HEADER];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase
@@ -41,7 +45,7 @@ export async function GET(req: Request) {
       .range(offset, offset + 999);
     if (error) return new Response(error.message, { status: 500 });
     for (const t of data ?? []) {
-      lines.push(csvLine(t as Parameters<typeof csvLine>[0]));
+      lines.push(csvLine(t as Parameters<typeof csvLine>[0], names));
     }
     if (!data || data.length < 1000) break;
   }

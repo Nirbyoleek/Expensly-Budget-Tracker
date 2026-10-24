@@ -1103,3 +1103,14 @@ a.btn { display: inline-flex; justify-content: center; text-align: center; }
 /* offline */
 .offline-pill { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 60; padding: 7px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); font: 700 12px var(--body); color: var(--muted); white-space: nowrap; }
 @media (min-width: 900px) { .offline-pill { bottom: 20px; } }
+
+/* your own categories */
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatches button { width: 32px; height: 32px; border-radius: 11px; border: 1px solid var(--line); cursor: pointer; }
+.swatches button.on { outline: 2px solid var(--fg); outline-offset: 2px; }
+.catgrid button.new { border-style: dashed; color: var(--muted); }
+.cat-form.inline { padding: 12px; border: 1px dashed var(--line); border-radius: 16px; }
+.bud-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.own-badge { font: 700 10px var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; margin-left: 6px; }
+.budget-type { display: flex; gap: 8px; align-items: center; }
+.budget-type .field { flex: 1; }

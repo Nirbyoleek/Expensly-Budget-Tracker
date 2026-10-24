@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateMerchant } from "@/app/actions";
-import { CategoryGrid, Sheet, useApp } from "@/components/app";
+import { Sheet, useApp } from "@/components/app";
 import { SubPicker } from "@/components/CategoryPicker";
+import { CategoryPickerWithNew } from "@/components/CategoryForm";
 import { merchantProfile } from "@/lib/analytics";
 import { addMonths, monthShort, monthStart, shortDate, todayISO } from "@/lib/dates";
 import { inr } from "@/lib/money";
@@ -80,7 +81,7 @@ export default function MerchantSheet({ name, tx, onClose }: { name: string; tx:
         <>
           <label className="lbl" htmlFor="m-name">NAME FOR ALL OF THEM<input id="m-name" className="field" value={rename} onChange={(e) => setRename(e.target.value)} maxLength={80} /></label>
           <div className="lbl">CATEGORY</div>
-          <CategoryGrid cats={cats} value={cat} onChange={(c) => { setCat(c); setSub(null); }} />
+          <CategoryPickerWithNew value={cat} onChange={(c) => { setCat(c); setSub(null); }} />
           <SubPicker category={cat} value={sub} onChange={setSub} />
           <p className="hint">Changes all {p.rows.length} transactions and every future one from {name}.</p>
           {error && <p className="error" role="alert">{error}</p>}

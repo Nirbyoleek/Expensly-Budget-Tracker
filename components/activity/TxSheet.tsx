@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateTransaction } from "@/app/actions";
-import { CategoryGrid, Sheet, useApp } from "@/components/app";
+import { Sheet, useApp } from "@/components/app";
 import { SubPicker } from "@/components/CategoryPicker";
+import { CategoryPickerWithNew } from "@/components/CategoryForm";
 import { isGenericName, prepareRow, vpaOf } from "@/lib/ingest/core";
 import { fullCategoryName } from "@/lib/taxonomy";
 import { toPaise } from "@/lib/money";
@@ -69,7 +70,7 @@ export default function TxSheet({ tx, onClose, onDelete, startWithDelete, onMerc
         <button type="button" aria-pressed={moneyIn} onClick={() => setMoneyIn(true)}>Money in</button>
       </div>
       <div className="lbl">CATEGORY</div>
-      <CategoryGrid cats={cats} value={cat} onChange={(c) => { setCat(c); setSub(null); if (c === "income") setMoneyIn(true); }} />
+      <CategoryPickerWithNew value={cat} onChange={(c) => { setCat(c); setSub(null); if (c === "income") setMoneyIn(true); }} />
       <SubPicker category={cat} value={sub} onChange={setSub} />
       {why && cat === tx.category_id && (
         <div className="note" style={{ fontSize: 12 }}>

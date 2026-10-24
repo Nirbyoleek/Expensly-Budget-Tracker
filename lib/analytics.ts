@@ -1,6 +1,6 @@
 import { addMonths, dayOf, daysInMonth, monthLong, monthShort, monthStart } from "./dates";
 import { FIXED_CATS, incomeOf, inMonth, resolveBudgets, shiftDays, spentByCategory } from "./finance";
-import { TAXONOMY_BY_ID, groupOf, subName, type Group } from "./taxonomy";
+import { TAXONOMY_BY_ID, groupFor, subName, type Group } from "./taxonomy";
 import type { BudgetRow, Category, IncomePlanRow, Transaction } from "./types";
 import { incomeStatus, resolvePlan, type IncomePlan, type IncomeStatus } from "./income";
 
@@ -73,7 +73,7 @@ export function categoryBreakdown(tx: Transaction[], cats: Category[], today: st
       }
       const nonEmptyPrev = prev.filter((p) => p !== undefined);
       return {
-        id: c.id, name: c.name, color: c.color, group: groupOf(c.id),
+        id: c.id, name: c.name, color: c.color, group: groupFor(c.id, cats),
         total: spent[c.id] ?? 0,
         count: rows.filter((t) => t.amount_paise < 0).length,
         avg3: Math.round(sum(nonEmptyPrev.map((p) => p[c.id] ?? 0)) / 3),
@@ -94,7 +94,7 @@ export function needsWants(tx: Transaction[], cats: Category[], month: string): 
   const spent = spentByCategory(m, cats);
   const out: Split = { needs: 0, wants: 0, avoidable: 0, savings: 0, income: incomeOf(m) };
   for (const [id, v] of Object.entries(spent)) {
-    const g = groupOf(id);
+    const g = groupFor(id, cats);
     if (g === "needs" || g === "wants" || g === "avoidable") out[g] += v;
   }
   out.savings = Math.max(0, -sum(m.filter((t) => t.category_id === "invest").map((t) => t.amount_paise)));

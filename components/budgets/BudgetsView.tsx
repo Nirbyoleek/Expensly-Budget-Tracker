@@ -10,10 +10,11 @@ import Header from "@/components/Header";
 import { inr, inrCompact } from "@/lib/money";
 import { monthLong, shortDate } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
-import { subName } from "@/lib/taxonomy";
+import { isCustomCategory, subName } from "@/lib/taxonomy";
+import CategoryForm from "@/components/CategoryForm";
 import AiBudgetPlan from "./AiBudgetPlan";
 
-type Row = { id: string; name: string; color: string; spent: number; budget: number; p: number; status: "Over" | "Ahead of pace" | "On track" };
+type Row = { id: string; name: string; color: string; spent: number; budget: number; p: number; status: "Over" | "Ahead of pace" | "On track"; own: boolean };
 
 export default function BudgetsView(props: {
   month: string;
@@ -27,13 +28,14 @@ export default function BudgetsView(props: {
   const { cats } = useApp();
   const [open, setOpen] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [newCat, setNewCat] = useState(false);
   const all: Row[] = cats
     .filter((c) => c.kind === "spend")
     .map((c) => {
       const spent = props.spentByCat[c.id] ?? 0, budget = props.budgets[c.id] ?? 0;
       const p = budget ? spent / budget : spent ? 2 : 0;
       const status: Row["status"] = p > 1 ? "Over" : p > props.pace + 0.12 ? "Ahead of pace" : "On track";
-      return { id: c.id, name: c.name, color: c.color, spent, budget, p, status };
+      return { id: c.id, name: c.name, color: c.color, spent, budget, p, status, own: isCustomCategory(c) };
     })
     .sort((a, b) => b.p - a.p);
   // Categories without a budget don't count as "over": they're listed separately with their spend.
@@ -73,6 +75,10 @@ export default function BudgetsView(props: {
           <AiBudgetPlan />
         </div>
       )}
+      <div className="bud-actions">
+        <button className="btn ghost sm" onClick={() => setNewCat(true)}>＋ New category</button>
+        <span className="hint">{cats.filter((c) => c.user_id).length ? `${cats.filter((c) => c.user_id).length} of your own` : "Make your own, with its own budget"}</span>
+      </div>
       <p className="hint only-desktop" style={{ margin: "0 4px" }}>The line on each bar marks where you&apos;d be if you spent evenly through the month. Click a category to change its budget; the new amount carries into later months.</p>
       </div>
 
@@ -80,7 +86,7 @@ export default function BudgetsView(props: {
         {rows.map((r, idx) => (
           <button key={r.id} className="bud" onClick={() => setOpen(r.id)}>
             <div className="row" style={{ width: "100%" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}><CatIcon name={r.name} color={r.color} size="sm" />{r.name}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}><CatIcon name={r.name} color={r.color} size="sm" />{r.name}{r.own && <span className="own-badge">Yours</span>}</span>
               <span className={`chip ${tone(r.status)}`}>{r.status}</span>
             </div>
             <div className="bar">
@@ -101,28 +107,35 @@ export default function BudgetsView(props: {
             <h2>No budget yet</h2>
             <span className="hint num">{unbudgetedSpent ? `${inr(unbudgetedSpent)} spent here` : `${unbudgeted.length} categories`}</span>
           </div>
-          {unbudgeted.filter((r) => showAll || r.spent > 0).map((r) => (
+          {unbudgeted.filter((r) => showAll || r.spent > 0 || r.own).map((r) => (
             <button key={r.id} className="list-row as-btn" onClick={() => setOpen(r.id)}>
               <CatIcon name={r.name} color={r.color} size="sm" />
-              <span className="grow"><b>{r.name}</b><span className="hint">{r.spent ? `${inr(r.spent)} this month` : "Nothing yet"}</span></span>
+              <span className="grow"><b>{r.name}{r.own && <span className="own-badge">Yours</span>}</b><span className="hint">{r.spent ? `${inr(r.spent)} this month` : "Nothing yet"}</span></span>
               <span className="link">Set budget</span>
             </button>
           ))}
-          {unbudgeted.some((r) => !r.spent) && (
-            <button className="link" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>{showAll ? "Show fewer" : `Show ${unbudgeted.filter((r) => !r.spent).length} more`}</button>
+          {unbudgeted.some((r) => !r.spent && !r.own) && (
+            <button className="link" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>{showAll ? "Show fewer" : `Show ${unbudgeted.filter((r) => !r.spent && !r.own).length} more`}</button>
           )}
         </section>
       )}
       </div>
       <p className="hint only-mobile" style={{ margin: "0 4px" }}>The line on each bar marks where you&apos;d be if you spent evenly through the month. Tap a category to change its budget; the new amount carries into later months.</p>
 
+      {newCat && (
+        <Sheet title="New category" onClose={() => setNewCat(false)}>
+          <CategoryForm onDone={() => setNewCat(false)} onCancel={() => setNewCat(false)} />
+        </Sheet>
+      )}
       {openRow && <BudgetSheet row={openRow} month={props.month} tx={props.monthTx.filter((t) => t.category_id === openRow.id)} onClose={() => setOpen(null)} />}
     </>
   );
 }
 
 function BudgetSheet({ row, month, tx, onClose }: { row: Row; month: string; tx: Transaction[]; onClose: () => void }) {
-  const { toast } = useApp();
+  const { toast, cats } = useApp();
+  const [editCat, setEditCat] = useState(false);
+  const category = cats.find((c) => c.id === row.id);
   const router = useRouter();
   const [value, setValue] = useState(Math.round(row.budget / 100));
   const [pending, start] = useTransition();
@@ -178,10 +191,23 @@ function BudgetSheet({ row, month, tx, onClose }: { row: Row; month: string; tx:
           ))}
         </div>
       )}
+      {row.own && category && (editCat ? (
+        <div className="cat-form inline">
+          <CategoryForm category={category} onDone={() => { setEditCat(false); onClose(); }} />
+          <button className="link" onClick={() => setEditCat(false)}>Close</button>
+        </div>
+      ) : (
+        <button className="link" style={{ alignSelf: "flex-start" }} onClick={() => setEditCat(true)}>Rename, recolour or delete this category</button>
+      ))}
       <label className="lbl" htmlFor="budget-range">
         MONTHLY BUDGET · <span className="num" style={{ color: "var(--fg)" }}>{inr(value * 100)}</span>
-        <input id="budget-range" type="range" min={0} max={Math.max(30000, Math.ceil((Math.max(row.budget, row.spent) / 100) * 2 / 1000) * 1000)} step={250} value={value} onChange={(e) => setValue(+e.target.value)} />
+        <input id="budget-range" type="range" min={0} max={Math.max(30000, value, Math.ceil((Math.max(row.budget, row.spent) / 100) * 2 / 1000) * 1000)} step={250} value={value} onChange={(e) => setValue(+e.target.value)} />
       </label>
+      <div className="budget-type">
+        <label className="lbl" htmlFor="budget-exact" style={{ flex: 1 }}>OR TYPE AN EXACT AMOUNT (₹)
+          <input id="budget-exact" className="field num" inputMode="numeric" value={value || ""} placeholder="0 = no budget" onChange={(e) => setValue(Math.min(1e9, Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ""), 10) || 0)))} />
+        </label>
+      </div>
       {error && <p className="error">{error}</p>}
       <button className="btn" disabled={pending || value * 100 === row.budget} onClick={save}>{pending ? "Saving…" : "Save budget"}</button>
       <div>

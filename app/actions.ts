@@ -412,6 +412,81 @@ export async function setBudget(categoryId: string, limitPaise: number): Promise
   }
 }
 
+/* ───────────────────────── your own categories ───────────────────────── */
+
+const CategoryInput = z.object({
+  name: z.string().trim().min(1, "Name the category.").max(40, "Keep the name under 40 characters."),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i, "Pick a colour."),
+  grp: z.enum(["needs", "wants", "avoidable"]),
+  budget_paise: z.number().int().min(0).max(1e11).optional(),
+});
+
+/** A spending category of your own, with an optional monthly budget from this month on. */
+export async function createCategory(input: z.input<typeof CategoryInput>): Promise<ActionResult<{ id: string }>> {
+  try {
+    const { supabase, user } = await session();
+    const c = CategoryInput.parse(input);
+    const { data: existing } = await supabase.from("categories").select("id,name,sort");
+    const clash = (existing ?? []).find((x) => String(x.name).trim().toLowerCase() === c.name.toLowerCase());
+    if (clash) throw new Error(`You already have a category called ${clash.name}.`);
+    const id = `u_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const sort = 100 + (existing ?? []).filter((x) => Number(x.sort) >= 100).length;
+    const { error } = await supabase.from("categories").insert({ id, user_id: user.id, name: c.name, color: c.color, kind: "spend", grp: c.grp, default_budget_paise: c.budget_paise ?? 0, sort });
+    if (error) throw new Error(error.message.includes("30 of your own") ? "You can have up to 30 of your own categories." : error.message);
+    if (c.budget_paise) {
+      await supabase.from("budgets").upsert({ category_id: id, month: monthStart(todayISO()), limit_paise: c.budget_paise }, { onConflict: "user_id,category_id,month" });
+    }
+    done();
+    return { ok: true, id };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function updateCategory(id: string, input: Omit<z.input<typeof CategoryInput>, "budget_paise">): Promise<ActionResult> {
+  try {
+    const { supabase, user } = await session();
+    const cid = CategoryId.parse(id);
+    const c = CategoryInput.omit({ budget_paise: true }).parse(input);
+    const { data: existing } = await supabase.from("categories").select("id,name");
+    const clash = (existing ?? []).find((x) => x.id !== cid && String(x.name).trim().toLowerCase() === c.name.toLowerCase());
+    if (clash) throw new Error(`You already have a category called ${clash.name}.`);
+    const { data, error } = await supabase.from("categories").update({ name: c.name, color: c.color, grp: c.grp }).eq("id", cid).eq("user_id", user.id).select("id");
+    if (error) throw new Error(error.message);
+    if (!data?.length) throw new Error("Only categories you made can be changed.");
+    done();
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Removes one of your categories. Its transactions and merchant rules move to another category
+ * first (Uncategorised by default), so nothing is lost; its budgets go with it.
+ */
+export async function deleteCategory(id: string, moveTo = "uncat"): Promise<ActionResult<{ moved: number }>> {
+  try {
+    const { supabase, user } = await session();
+    const cid = CategoryId.parse(id), to = CategoryId.parse(moveTo);
+    if (cid === to) throw new Error("Pick a different category to move things to.");
+    const { data: own } = await supabase.from("categories").select("id").eq("id", cid).eq("user_id", user.id).maybeSingle();
+    if (!own) throw new Error("Only categories you made can be deleted.");
+    const { data: target } = await supabase.from("categories").select("id,kind").eq("id", to).maybeSingle();
+    if (!target) throw new Error("That category doesn't exist.");
+    const { data: moved, error: mvErr } = await supabase.from("transactions").update({ category_id: to, subcategory_id: null, updated_at: new Date().toISOString() }).eq("category_id", cid).select("id");
+    if (mvErr) throw new Error(mvErr.message);
+    await supabase.from("merchant_rules").update({ category_id: to, subcategory_id: null }).eq("category_id", cid);
+    await supabase.from("budgets").delete().eq("category_id", cid);
+    const { error } = await supabase.from("categories").delete().eq("id", cid).eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+    done();
+    return { ok: true, moved: moved?.length ?? 0 };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 /* ───────────────────────── AI connection ───────────────────────── */
 
 const ProviderId = z.enum(["gemini", "openai", "groq", "anthropic", "openrouter"]);

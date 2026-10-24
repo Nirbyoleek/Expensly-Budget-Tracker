@@ -17,9 +17,9 @@ export const safeText = (v: unknown) => {
 export const CSV_HEADER = "date,merchant,amount_inr,category,subcategory,source,reviewed,note";
 
 /** One CSV line per transaction. Amounts in rupees with 2 decimals, negative = money out. */
-export function csvLine(t: ExportRow): string {
-  return [t.date, safeText(t.merchant_name), (Number(t.amount_paise) / 100).toFixed(2), fullCategoryName(t.category_id, null), subName(t.category_id, t.subcategory_id) ?? "", t.source, t.reviewed, safeText(t.note)].map(csvCell).join(",");
+export function csvLine(t: ExportRow, names: Record<string, string> = {}): string {
+  return [t.date, safeText(t.merchant_name), (Number(t.amount_paise) / 100).toFixed(2), fullCategoryName(t.category_id, null, names[t.category_id]), subName(t.category_id, t.subcategory_id) ?? "", t.source, t.reviewed, safeText(t.note)].map(csvCell).join(",");
 }
 
 /** The whole file, with a byte-order mark so Excel opens ₹ and Indian names correctly. */
-export const transactionsCsv = (rows: ExportRow[]) => "﻿" + [CSV_HEADER, ...rows.map(csvLine)].join("\n");
+export const transactionsCsv = (rows: ExportRow[]) => "﻿" + [CSV_HEADER, ...rows.map((r) => csvLine(r))].join("\n");

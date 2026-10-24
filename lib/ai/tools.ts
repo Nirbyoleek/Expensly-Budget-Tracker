@@ -1,7 +1,7 @@
 import { analyse } from "@/lib/analytics";
 import { addMonths, monthStart } from "@/lib/dates";
 import { monthView, netWorth, resolveBudgets, spentByCategory, inMonth } from "@/lib/finance";
-import { TAXONOMY, TAXONOMY_BY_ID, groupOf, subName } from "@/lib/taxonomy";
+import { TAXONOMY, TAXONOMY_BY_ID, groupFor, subName } from "@/lib/taxonomy";
 import type { Account, BudgetRow, Category, Goal, IncomePlanRow, Transaction } from "@/lib/types";
 
 /**
@@ -21,7 +21,6 @@ export type AiContext = {
 };
 
 const r = (paise: number) => Math.round(paise / 100);
-const catName = (id: string) => TAXONOMY_BY_ID[id]?.name ?? id;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const weekday = (iso: string) => WEEKDAYS[(new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7];
 
@@ -114,6 +113,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : u
 
 export function runTool(name: string, input: Input, ctx: AiContext): unknown {
   const spendIds = new Set(ctx.cats.filter((c) => c.kind === "spend").map((c) => c.id));
+  const catName = (id: string) => TAXONOMY_BY_ID[id]?.name ?? ctx.cats.find((c) => c.id === id)?.name ?? id;
   const month = monthStart(ctx.today);
 
   switch (name as ToolName) {
@@ -197,7 +197,7 @@ export function runTool(name: string, input: Input, ctx: AiContext): unknown {
           case "merchant": return t.merchant_name;
           case "month": return t.date.slice(0, 7);
           case "weekday": return weekday(t.date);
-          case "needs_wants": return groupOf(t.category_id);
+          case "needs_wants": return groupFor(t.category_id, ctx.cats);
           default: return catName(t.category_id);
         }
       };

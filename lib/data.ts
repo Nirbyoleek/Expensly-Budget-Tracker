@@ -18,7 +18,7 @@ export const requireUser = cache(async () => {
 
 export const getCategories = cache(async (): Promise<Category[]> => {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("categories").select("id,name,color,kind,default_budget_paise,sort").order("sort");
+  const { data } = await supabase.from("categories").select("id,name,color,kind,default_budget_paise,sort,user_id,grp").order("sort");
   return (data as Category[] | null)?.length ? (data as Category[]) : SYSTEM_CATEGORIES;
 });
 

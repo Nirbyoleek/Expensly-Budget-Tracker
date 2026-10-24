@@ -51,7 +51,7 @@ Expensly starts from one question you can act on every day: **how much can I saf
 | 📥 **Import anything** | Bank and card statements (PDF, including password-protected, or CSV), pasted bank SMS, or a quick typed list |
 | 🧠 **Automatic sorting** | 21 categories and 80+ subcategories, filled in for you, learning from every correction |
 | 💸 **Money in & out** | Income, refunds, paybacks and transfers shown separately, so "spent" means what actually left your pocket |
-| 📊 **Budgets** | Per-category limits with a pace marker, or one tap to have the AI suggest them from your last three months |
+| 📊 **Budgets** | Per-category limits with a pace marker, your own categories with their own budgets, or one tap to have the AI suggest them from your last three months |
 | 💡 **Insights** | A money health score, needs vs wants vs savings, trends, unusual charges, duplicate payments and avoidable fees |
 | 📅 **Daily calendar** | Every day of the month coloured by how much you spent, with the amount on each day and past months one tap away |
 | ✦ **Ask AI** | Chat with your own money: "Why did I spend more than last month?" |
@@ -111,6 +111,8 @@ Every transaction, grouped by day.
 ### Budgets
 - A bar for each category with a **pace marker**, so you can see whether you're ahead of or behind where you should be today.
 - Tap any budget to change it. The change carries forward to later months.
+- **Make your own categories** (Pet care, Gym, Kids…) with **＋ New category** on Budgets, or straight from a transaction's category chips. Pick a colour, say whether it's a need, a want or avoidable, and optionally give it a monthly budget. Up to 30. Deleting one moves its transactions to a category you choose, so nothing is lost.
+- Set a budget with the slider or type the exact amount.
 - **Plan with AI** looks at your last three months and your income, then suggests a budget for each category with a one-line reason. Nothing changes until you apply it.
 
 ### Insights

@@ -204,15 +204,18 @@ export function CountUp({ value, compact }: { value: number; compact?: boolean }
   return <>{compact ? inrCompact(shown) : inr(shown)}</>;
 }
 
-export function CategoryGrid({ cats, value, onChange }: { cats: Category[]; value: string; onChange: (id: string) => void }) {
+export function CategoryGrid({ cats, value, onChange, onNew, extra }: { cats: Category[]; value: string; onChange: (id: string) => void; onNew?: () => void; extra?: { id: string; name: string; color: string } | null }) {
+  // a category made a moment ago shows straight away, before the page has reloaded the list
+  const list = extra && !cats.some((c) => c.id === extra.id) ? [...cats, extra] : cats;
   return (
     <div className="catgrid" role="radiogroup" aria-label="Category">
-      {cats.map((c) => (
+      {list.map((c) => (
         <button key={c.id} type="button" role="radio" aria-checked={c.id === value} aria-pressed={c.id === value} onClick={() => onChange(c.id)}>
           <span className="dot" style={{ background: c.color }} />
           {c.name}
         </button>
       ))}
+      {onNew && <button type="button" className="new" onClick={onNew}>＋ New category</button>}
     </div>
   );
 }

@@ -7,6 +7,10 @@ export type Category = {
   kind: CategoryKind;
   default_budget_paise: number;
   sort: number;
+  /** Set on categories you made yourself; system categories have none. */
+  user_id?: string | null;
+  /** Your own categories say whether they're a need, a want or avoidable. */
+  grp?: "needs" | "wants" | "avoidable" | null;
 };
 
 export type TxSource = "manual" | "sms" | "shortcut" | "import" | "sample";

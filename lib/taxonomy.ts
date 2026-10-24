@@ -88,5 +88,11 @@ export function fullCategoryName(categoryId: string, subId: string | null | unde
 
 export const groupOf = (categoryId: string): Group => TAXONOMY_BY_ID[categoryId]?.group ?? "wants";
 
+/** Like groupOf, but your own categories use the group you picked for them. */
+export const groupFor = (id: string, cats: Category[]): Group => TAXONOMY_BY_ID[id]?.group ?? cats.find((c) => c.id === id)?.grp ?? "wants";
+
+/** Your own categories have no built-in definition. */
+export const isCustomCategory = (c: Pick<Category, "id" | "user_id">) => !!c.user_id || !TAXONOMY_BY_ID[c.id];
+
 /** Plain categories in the shape the database and older code expect. */
 export const TAXONOMY_CATEGORIES: Category[] = TAXONOMY.map(({ subs: _s, group: _g, ...c }) => c);
