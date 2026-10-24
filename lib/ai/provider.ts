@@ -40,7 +40,7 @@ export function makeProvider(id: ProviderId, key: string, model: string, own: bo
 }
 
 /** The app owner's server-side key, if one is configured (used when someone hasn't connected their own). */
-export function serverProvider(env = process.env): Provider | null {
+export function serverProvider(env: Record<string, string | undefined> = process.env): Provider | null {
   const asked = env.AI_MODEL?.trim();
   const order: [ProviderId, string | undefined][] = [["anthropic", env.ANTHROPIC_API_KEY], ["openai", env.OPENAI_API_KEY], ["gemini", env.GEMINI_API_KEY], ["groq", env.GROQ_API_KEY], ["openrouter", env.OPENROUTER_API_KEY]];
   const build = (id: ProviderId, key: string): Provider => {

@@ -1,14 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { fullCategoryName, subName } from "@/lib/taxonomy";
+import { CSV_HEADER, csvLine } from "@/lib/export";
 
 export const dynamic = "force-dynamic";
-
-const cell = (v: unknown) => {
-  const s = v == null ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-/** Text that starts like a formula could run in Excel; a leading ' keeps it as text. */
-const text = (v: unknown) => { const s = v == null ? "" : String(v); return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; };
 
 const TABLES = ["transactions", "accounts", "goals", "goal_contributions", "budgets", "income_plans", "merchant_rules", "imports", "net_worth_snapshots", "notifications"] as const;
 
@@ -39,7 +32,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const lines = ["date,merchant,amount_inr,category,subcategory,source,reviewed,note"];
+  const lines = [CSV_HEADER];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase
       .from("transactions")
@@ -48,7 +41,7 @@ export async function GET(req: Request) {
       .range(offset, offset + 999);
     if (error) return new Response(error.message, { status: 500 });
     for (const t of data ?? []) {
-      lines.push([t.date, text(t.merchant_name), (Number(t.amount_paise) / 100).toFixed(2), fullCategoryName(t.category_id, null), subName(t.category_id, t.subcategory_id) ?? "", t.source, t.reviewed, text(t.note)].map(cell).join(","));
+      lines.push(csvLine(t as Parameters<typeof csvLine>[0]));
     }
     if (!data || data.length < 1000) break;
   }

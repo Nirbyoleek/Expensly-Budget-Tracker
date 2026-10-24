@@ -38,6 +38,8 @@ const MERCHANT_PATTERNS: RegExp[] = [
   new RegExp(String.raw`\b(?:trf\s+)?to\s+` + NAME + END, "i"),
   /;\s*([a-z0-9][a-z0-9 &.'\-]{1,40}?)\s+credited/i,
   /\binfo:?\s*([a-z0-9\/ .*\-]{3,60})/i,
+  // card alerts: "spent using Card XX1234 on 21-Oct-26 on MYNTRA" (the date is skipped as not a name)
+  new RegExp(String.raw`\bon\s+([a-z][a-z0-9 &.'*_\-]{1,40}?)(?=\.\s|\.$|\s+(?:avl|avbl|ref|for|via|using|is)\b|,|;|$)`, "i"),
   new RegExp(String.raw`\b(?:by|from)\s+` + NAME + END, "i"),
   /\b([\w.\-]+@[\w]+)\b/i,
 ];
@@ -121,6 +123,9 @@ export function parseCsvStatement(text: string, today: string): RawRow[] | null 
   const cType = col(/cr\/dr|dr\/cr|^type$|debit\/credit|txn type/);
   const cBal = col(/balance/);
 
+  // A single amount column with some negatives is signed: trust the sign, positives are money in.
+  const signed = cAmt >= 0 && rows.slice(h + 1).some((r) => parseAmount(r[cAmt]) < 0);
+
   return rows.slice(h + 1).flatMap((r): RawRow[] => {
     const d = parseDate(r[cDate] ?? "", today);
     if (!d) return [];
@@ -134,7 +139,8 @@ export function parseCsvStatement(text: string, today: string): RawRow[] | null 
       const a = parseAmount(raw);
       const tag = `${cType >= 0 ? r[cType] : ""} ${raw}`;
       const isCr = /\bcr\b|cr$|credit/i.test(tag.trim()) && !/\bdr\b|dr$|debit/i.test(tag.trim());
-      amount = a < 0 ? a : isCr ? Math.abs(a) : -Math.abs(a);
+      const isDr = /\bdr\b|dr$|debit/i.test(tag.trim());
+      amount = a < 0 ? a : isCr ? Math.abs(a) : signed && !isDr ? Math.abs(a) : -Math.abs(a);
     }
     if (!amount || Number.isNaN(amount)) return [];
     const bal = cBal >= 0 ? parseAmount(r[cBal]) : NaN;
