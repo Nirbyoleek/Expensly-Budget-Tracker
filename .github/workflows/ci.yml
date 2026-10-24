@@ -18,3 +18,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # A production build catches what typecheck can't: bad imports, server/client boundaries, route config.
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
