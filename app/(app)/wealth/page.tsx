@@ -3,7 +3,6 @@ import { getAccounts, getCategories, getGoals, getRecentTransactions, getSnapsho
 import { netWorth } from "@/lib/finance";
 import { recurringPayments } from "@/lib/analytics";
 import { goalProgress } from "@/lib/goals";
-import { peopleBalances } from "@/lib/people";
 import { monthStart, todayISO } from "@/lib/dates";
 
 export const metadata = { title: "Wealth · Expensly" };
@@ -27,7 +26,6 @@ export default async function WealthPage() {
       progress={progress}
       trend={trend}
       subscriptions={recurringPayments(tx, cats, today)}
-      people={peopleBalances(tx)}
       todayIso={today}
       sample={tx.some((t) => t.source === "sample") || accounts.some((a) => a.is_sample)}
     />

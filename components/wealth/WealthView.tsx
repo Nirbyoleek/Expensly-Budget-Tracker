@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import { inr, inrCompact, toPaise } from "@/lib/money";
 import { monthShort, shortDate } from "@/lib/dates";
 import type { RecurringItem } from "@/lib/analytics";
-import type { PersonBalance } from "@/lib/people";
 import type { Account, AccountType, Goal } from "@/lib/types";
 
 const TYPE_LABEL: Record<AccountType, string> = { bank: "Bank", card: "Credit cards", investment: "Investments", cash: "Cash", loan: "Loans" };
@@ -27,7 +26,6 @@ export default function WealthView(props: {
   trend: { month: string; value: number }[];
   progress: Record<string, GoalProg>;
   subscriptions: RecurringItem[];
-  people: PersonBalance[];
   todayIso: string;
   sample: boolean;
 }) {
@@ -133,22 +131,6 @@ export default function WealthView(props: {
         }) : <p className="empty">Subscriptions, SIPs and bills appear here once the same charge shows up twice on a regular schedule.</p>}
       </section>
 
-      <section className="card o4" id="people">
-        <div className="section-h"><h2>Money with friends</h2><span className="hint">last 6 months</span></div>
-        {props.people.length ? props.people.map((p) => (
-          <div key={p.key} className="list-row">
-            <CatIcon name={p.name} color={p.net > 0 ? "var(--good)" : "var(--warn)"} size="sm" />
-            <div className="grow">
-              <b className="ellipsis">{p.name}</b>
-              <small className="muted">Sent {inr(p.sent)} · got {inr(p.received)} · last {shortDate(p.last)}</small>
-            </div>
-            <span className="num sub-amt">
-              <b className={p.net > 0 ? "good" : "warn"}>{inr(Math.abs(p.net))}</b>
-              <small className="muted">{p.net > 0 ? "you gave more" : "you got more"}</small>
-            </span>
-          </div>
-        )) : <p className="empty">When you send money to friends over UPI and they pay you back, the running balance with each person shows here.</p>}
-      </section>
 
       </div>
       </div>
