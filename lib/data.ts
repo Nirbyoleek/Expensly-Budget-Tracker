@@ -63,7 +63,7 @@ export const getAccounts = cache(async (): Promise<Account[]> => {
 
 export const getGoals = cache(async (): Promise<Goal[]> => {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("goals").select("id,name,target_paise,saved_paise,target_date,color,is_sample").order("created_at");
+  const { data } = await supabase.from("goals").select("id,name,target_paise,saved_paise,target_date,color,is_sample,link_kind,link_value,link_from,created_at").order("created_at");
   return (data as Goal[] | null) ?? [];
 });
 
@@ -97,3 +97,32 @@ export const getProfile = cache(async () => {
     onboardingDismissed: data?.onboarding_dismissed === true,
   };
 });
+
+/** Every transaction between two dates (inclusive), for looking back past the six-month window. */
+export async function getTransactionsBetween(from: string, to: string): Promise<Transaction[]> {
+  const { supabase } = await requireUser();
+  const rows: Transaction[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select(TX_COLUMNS)
+      .gte("date", from)
+      .lte("date", to)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + 999);
+    if (error) throw new Error(`Couldn't load transactions: ${error.message}`);
+    rows.push(...((data as Transaction[]) ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
+}
+
+/** The months that have any transactions, newest first ("YYYY-MM-01"). */
+export const getActiveMonths = cache(async (): Promise<string[]> => {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("tx_months");
+  if (error || !data) return [];
+  return (data as { month: string }[]).map((r) => r.month.slice(0, 10));
+});
+

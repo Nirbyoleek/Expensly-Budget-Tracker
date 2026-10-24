@@ -9,7 +9,7 @@ import type { IncomePlan } from "@/lib/income";
 import { CountUp, Sheet, useApp } from "@/components/app";
 import { Ring } from "@/components/charts";
 import { WEEKDAY_SHORT, type Alert, type Analysis, type CategoryBreakdown } from "@/lib/analytics";
-import { monthLong, monthShort, shortDate } from "@/lib/dates";
+import { addMonths, monthLong, monthShort, monthStart, shortDate } from "@/lib/dates";
 import { inr, inrCompact } from "@/lib/money";
 import { TAXONOMY_BY_ID, subName } from "@/lib/taxonomy";
 import type { Transaction } from "@/lib/types";
@@ -56,6 +56,12 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
   return (
     <>
       <Header title="Insights" subtitle={monthLong(today)} sample={sample} />
+
+      <Link href="/review" className="card tile-link review-tile">
+        <span className="glyph-box" aria-hidden="true">◷</span>
+        <span><b>{monthLong(addMonths(monthStart(today), -1)).split(" ")[0]} in review</b><small>Last month wrapped up: what you spent, what changed, your top places.</small></span>
+        <span aria-hidden="true">›</span>
+      </Link>
 
       <div className="ins-grid">
         <div className="ins-col">

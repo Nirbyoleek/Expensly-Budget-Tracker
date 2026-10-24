@@ -256,6 +256,12 @@ export function insights(v: ReturnType<typeof monthView>, tx: Transaction[], cat
     out.push({ id: "wow", tone: s.pct > 0 ? "warn" : "good", glyph: s.pct > 0 ? "▲" : "▼", title: `${name} is ${s.pct > 0 ? "up" : "down"} ${Math.abs(s.pct)}% this week`, body: `${fmt(s.now)} in the last 7 days vs ${fmt(s.before)} the week before.` });
   }
 
+  const unsorted = inMonth(tx, v.month).filter((t) => t.category_id === "uncat" && t.amount_paise < 0);
+  if (unsorted.length) {
+    const total = -unsorted.reduce((a, t) => a + t.amount_paise, 0);
+    out.push({ id: "uncat", tone: "warn", glyph: "?", title: `${fmt(total)} isn't sorted yet`, body: `${unsorted.length} spend${unsorted.length === 1 ? "" : "s"} this month ${unsorted.length === 1 ? "has" : "have"} no category. File them so budgets and insights are right.`, href: "/activity?filter=uncat" });
+  }
+
   const subs = v.recurring.filter((r) => r.category_id === "subs");
   if (subs.length) {
     const total = subs.reduce((a, r) => a + r.amount, 0);

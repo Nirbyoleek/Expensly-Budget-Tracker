@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteEverything, loadSampleData, reclassifyAll, removeSampleData, rotateIngestToken, signOut } from "@/app/actions";
+import { deleteEverything, loadSampleData, reclassifyAll, removeSampleData, signOut } from "@/app/actions";
 import { useApp } from "@/components/app";
 import Header from "@/components/Header";
 import IncomeForm from "@/components/IncomeForm";
@@ -15,7 +16,6 @@ export default function SettingsView({ email, hasSample, hasToken, origin, plan,
   const { toast, openAdd, cats } = useApp();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [token, setToken] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [showDelete, setShowDelete] = useState(false);
   const [error, setError] = useState("");
@@ -44,10 +44,6 @@ export default function SettingsView({ email, hasSample, hasToken, origin, plan,
       router.refresh();
       toast(msg);
     });
-
-  const copy = async (text: string) => {
-    try { await navigator.clipboard.writeText(text); toast("Copied"); } catch { toast("Select the text and copy it"); }
-  };
 
   return (
     <>
@@ -106,27 +102,11 @@ export default function SettingsView({ email, hasSample, hasToken, origin, plan,
         )}
       </section>
 
-      <section className="card stack">
-        <h2>Forward bank SMS from iPhone</h2>
-        <p className="muted" style={{ fontSize: 14 }}>An iOS Shortcut can send each bank alert to Expensly as it arrives. Entries land as “to review”.</p>
-        {token ? (
-          <div className="note">
-            <b>Your token (shown once)</b>
-            <code className="inline" style={{ display: "block", margin: "6px 0" }}>{token}</code>
-            <button className="link" onClick={() => copy(token)}>Copy token</button>
-          </div>
-        ) : (
-          <button className="btn ghost" disabled={pending} onClick={() => start(async () => { const r = await rotateIngestToken(); if (r.ok) setToken(r.token); else toast(r.error); })}>
-            {hasToken ? "Replace token" : "Create token"}
-          </button>
-        )}
-        <ol className="steps">
-          <li>In the Shortcuts app, open <b>Automation → New → Message</b>. Set “Message contains” to <b>debited</b> (add another for <b>spent</b>), and choose <b>Run immediately</b>.</li>
-          <li>Add <b>Get Contents of URL</b>: URL <code className="inline">{origin}/api/ingest/sms</code>, Method <b>POST</b>, Header <b>Authorization</b> = <code className="inline">Bearer your-token</code>, Request Body <b>JSON</b> with key <b>text</b> set to the Shortcut Input’s message content.</li>
-          <li>Expensly must be deployed (for example on Vercel) for your phone to reach it; <code className="inline">localhost</code> only works on this computer.</li>
-        </ol>
-        {hasToken && !token && <p className="hint">Replacing the token stops the old one working straight away.</p>}
-      </section>
+      <Link href="/settings/capture" className="card tile-link">
+        <span className="glyph-box" aria-hidden="true">✉</span>
+        <span><b>Track automatically from iPhone</b><small>Bank SMS land in Expensly within seconds, already sorted. Guided setup with a live check.</small></span>
+        <span aria-hidden="true">›</span>
+      </Link>
 
       <section className="card stack">
         <h2>Your data</h2>

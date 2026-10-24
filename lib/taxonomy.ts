@@ -7,7 +7,7 @@ import type { Category } from "./types";
  * `group` drives the needs / wants / savings split: needs keep life running, wants are choices,
  * savings move money into your future, avoidable is money lost to fees and interest.
  */
-export type Group = "needs" | "wants" | "savings" | "avoidable" | "income" | "transfer";
+export type Group = "needs" | "wants" | "savings" | "avoidable" | "income" | "transfer" | "unsorted";
 
 export type CategoryDef = Category & { group: Group; subs: { id: string; name: string }[] };
 
@@ -60,6 +60,8 @@ export const TAXONOMY: CategoryDef[] = [
   C("govt", "Taxes & government", "#64748B", "spend", 0, 16, "needs", [["documents", "Passports & documents"], ["tax", "Income & property tax"], ["fines", "Fines & challans"]]),
   C("cash", "Cash withdrawals", "#78716C", "spend", 0, 17, "wants", [["atm", "ATM withdrawals"]]),
   C("donate", "Donations", "#22C55E", "spend", 0, 18, "wants", [["charity", "Charity"], ["religious", "Religious offerings"]]),
+  // Where unknown spends wait until someone files them, instead of quietly inflating Shopping.
+  C("uncat", "Uncategorised", "#9CA3AF", "spend", 0, 19, "unsorted", []),
   C("invest", "Investments", "#7D8EFF", "transfer", 0, 80, "savings", [
     ["sip", "Mutual fund SIPs"], ["stocks", "Stocks"], ["deposits", "FDs & RDs"], ["gold", "Gold"], ["retirement", "PPF, EPF & NPS"],
   ]),

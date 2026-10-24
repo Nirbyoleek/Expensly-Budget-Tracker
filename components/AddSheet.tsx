@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addTransactions, findExisting, undoImport } from "@/app/actions";
+import { addTransactions, findExisting, listAccounts, undoImport } from "@/app/actions";
 import { aiSortImport, type AiPick } from "@/app/import-ai";
 import { isGenericName, merchantCacheKey, payeeKey, prepareRows, REVIEW_THRESHOLD, vpaOf, type PreparedRow } from "@/lib/ingest/core";
 import { CategorySelect } from "@/components/CategoryPicker";
 import { parseQuick, parseSms, parseStatement } from "@/lib/ingest/parsers";
-import { describeCheck, reconcile, type PdfPage } from "@/lib/ingest/table";
+import { accountLast4, closingBalance, describeCheck, reconcile, type PdfPage } from "@/lib/ingest/table";
 import type { RawRow } from "@/lib/ingest/core";
 import { inr } from "@/lib/money";
 import { shortDate, todayISO } from "@/lib/dates";
 import { Sheet, useApp } from "./app";
+import { enqueue, isOfflineError } from "@/lib/offline-queue";
 import StatementGuide from "./StatementGuide";
 
 type Row = PreparedRow & { include: boolean; dupe: boolean; edited: boolean };
@@ -128,7 +129,12 @@ function StatementPane() {
   const [over, setOver] = useState(false);
   const [check, setCheck] = useState<{ tone: "good" | "warn" | "none"; text: string } | null>(null);
   const [aiNote, setAiNote] = useState("");
+  // The account this statement belongs to, so its balance can follow the statement.
+  const [accounts, setAccounts] = useState<Awaited<ReturnType<typeof listAccounts>>>([]);
+  const [closing, setClosing] = useState<{ balance_paise: number; date: string; last4: string | null } | null>(null);
+  const [acct, setAcct] = useState<string>("skip"); // account id | "new" | "skip"
   const today = todayISO();
+  useEffect(() => { listAccounts().then(setAccounts).catch(() => undefined); }, []);
 
   /** Text or CSV, or a PDF read as a table first and as lines if that fails. */
   const load = async (input: string | PdfPage[], meta: { name: string; kind: "csv" | "pdf" | "text" }) => {
@@ -143,6 +149,13 @@ function StatementPane() {
       raw = table && table.rows.length >= lines.length * 0.8 ? table.rows : lines;
     }
     const rec = reconcile(raw);
+    const end = closingBalance(rec.rows);
+    const last4 = accountLast4(typeof input === "string" ? input.slice(0, 3000) : input.slice(0, 1).flat().map((r) => r.items.map((i) => i.s).join(" ")).join("\n"));
+    setClosing(end ? { ...end, last4 } : null);
+    if (end) {
+      const match = accounts.find((a) => last4 && a.last4 === last4) ?? (accounts.filter((a) => a.type === "bank").length === 1 ? accounts.find((a) => a.type === "bank") : undefined);
+      setAcct(match ? match.id : accounts.some((a) => a.type === "bank") ? "skip" : "new");
+    } else setAcct("skip");
     const c = describeCheck(rec.check);
     setCheck(c.text ? c : null);
     const prepared = prepareRows(rec.rows, rules, { memory });
@@ -249,7 +262,25 @@ function StatementPane() {
       {aiNote && rows.length > 0 && <p className="hint" role="status">{aiNote}</p>}
       {check && rows.length > 0 && <p className={check.tone === "warn" ? "error" : "hint good"} role="status" style={check.tone === "warn" ? { color: "var(--warn, #E8A00B)" } : undefined}>{check.text}</p>}
       <Preview rows={rows} setRows={setRows} />
-      <Commit rows={rows} file={file ?? undefined} onDone={() => { setRows([]); setStatus(""); setFile(null); setCheck(null); setAiNote(""); }} />
+      {closing && rows.length > 0 && (
+        <div className="note acct-pick">
+          <b>Closing balance {inr(closing.balance_paise)}{closing.balance_paise < 0 ? " overdrawn" : ""} on {shortDate(closing.date)}</b>
+          <label className="lbl" htmlFor="acct-pick">UPDATE THIS ACCOUNT&apos;S BALANCE
+            <select id="acct-pick" className="field" value={acct} onChange={(e) => setAcct(e.target.value)}>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ""} (now {inr(a.balance_paise)})</option>)}
+              <option value="new">New bank account{closing.last4 ? ` ••${closing.last4}` : ""}</option>
+              <option value="skip">Don&apos;t update a balance</option>
+            </select>
+          </label>
+          <small className="hint">Your net worth on Wealth follows your real balance, with no typing.</small>
+        </div>
+      )}
+      <Commit
+        rows={rows}
+        file={file ?? undefined}
+        account={closing && acct !== "skip" ? (acct === "new" ? { create: { name: bankName(file?.name, closing.last4), type: "bank", last4: closing.last4 }, balance_paise: closing.balance_paise } : { id: acct, balance_paise: closing.balance_paise }) : undefined}
+        onDone={() => { setRows([]); setStatus(""); setFile(null); setCheck(null); setAiNote(""); setClosing(null); listAccounts().then(setAccounts).catch(() => undefined); }}
+      />
     </>
   );
 }
@@ -294,7 +325,13 @@ function Preview({ rows, setRows }: { rows: Row[]; setRows: React.Dispatch<React
   );
 }
 
-function Commit({ rows, file, onDone }: { rows: Row[]; file?: { name: string; kind: "csv" | "pdf" | "text" | "sms" }; onDone: () => void }) {
+/** A sensible name for a new account from the statement's file name: "HDFC ••4417", else "Bank account". */
+function bankName(fileName: string | undefined, last4: string | null) {
+  const bank = (fileName ?? "").match(/\b(hdfc|sbi|icici|axis|kotak|idfc|yes|indusind|pnb|bob|canara|federal|au|rbl|union)\b/i)?.[1];
+  return `${bank ? bank.toUpperCase() : "Bank account"}${last4 ? ` ••${last4}` : ""}`;
+}
+
+function Commit({ rows, file, onDone, account }: { rows: Row[]; file?: { name: string; kind: "csv" | "pdf" | "text" | "sms" }; onDone: () => void; account?: Parameters<typeof addTransactions>[0]["account"] }) {
   const { toast, closeAdd } = useApp();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -307,7 +344,7 @@ function Commit({ rows, file, onDone }: { rows: Row[]; file?: { name: string; ki
     busy.current = true;
     setError("");
     start(async () => {
-      const res = await addTransactions({
+      const payload = {
         rows: chosen.map((r) => ({
           date: r.date,
           amount_paise: r.amount_paise,
@@ -320,13 +357,28 @@ function Commit({ rows, file, onDone }: { rows: Row[]; file?: { name: string; ki
           reviewed: r.source === "manual" || r.edited || r.confidence >= REVIEW_THRESHOLD,
         })),
         file,
-      });
+        account,
+      };
+      let res: Awaited<ReturnType<typeof addTransactions>>;
+      try {
+        res = await addTransactions(payload);
+      } catch (e) {
+        busy.current = false;
+        // No connection: keep hand-typed entries on this phone and send them when it's back.
+        if (!file && !account && isOfflineError(e) && enqueue(payload.rows)) {
+          window.dispatchEvent(new Event("expensly:queued"));
+          onDone();
+          closeAdd();
+          return toast(`You're offline. ${payload.rows.length === 1 ? "It's" : `All ${payload.rows.length} are`} saved on this phone and will sync when you're back online.`);
+        }
+        return setError(file ? "Couldn't reach Expensly. Check your connection and try again; nothing was lost." : "Couldn't reach Expensly. Try again in a moment.");
+      }
       busy.current = false;
       if (!res.ok) return setError(res.error);
       onDone();
       closeAdd();
       router.refresh();
-      const msg = `Added ${res.added} transaction${res.added === 1 ? "" : "s"}${res.skipped ? ` · ${res.skipped} already there` : ""}`;
+      const msg = `Added ${res.added} transaction${res.added === 1 ? "" : "s"}${res.skipped ? ` · ${res.skipped} already there` : ""}${res.accountName ? ` · ${res.accountName} balance updated` : ""}`;
       const importId = res.importId;
       toast(msg, importId && file?.kind !== "sms" ? { label: "Undo", run: async () => { await undoImport(importId); router.refresh(); toast("Import undone"); } } : undefined);
     });

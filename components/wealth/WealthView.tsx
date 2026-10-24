@@ -2,26 +2,33 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { contributeToGoal, createGoal, deleteAccount, deleteGoal, saveAccount } from "@/app/actions";
+import { contributeToGoal, createGoal, deleteAccount, deleteGoal, saveAccount, setGoalLink } from "@/app/actions";
 import { CatIcon, CountUp, Sheet, useApp } from "@/components/app";
 import { Ring } from "@/components/charts";
 import { TrendScrubber } from "@/components/charts/interactive";
 import Header from "@/components/Header";
 import { inr, inrCompact, toPaise } from "@/lib/money";
-import { monthShort } from "@/lib/dates";
-import type { Recurring } from "@/lib/finance";
+import { monthShort, shortDate } from "@/lib/dates";
+import type { RecurringItem } from "@/lib/analytics";
+import type { PersonBalance } from "@/lib/people";
 import type { Account, AccountType, Goal } from "@/lib/types";
 
 const TYPE_LABEL: Record<AccountType, string> = { bank: "Bank", card: "Credit cards", investment: "Investments", cash: "Cash", loan: "Loans" };
 const TYPE_COLOR: Record<AccountType, string> = { bank: "#3B8BF6", card: "#F2683C", investment: "#7D8EFF", cash: "#E8A00B", loan: "#E8508A" };
+type GoalProg = { saved: number; auto: number; count: number; last: string | null };
+const CADENCE: Record<RecurringItem["cadence"], string> = { weekly: "Weekly", monthly: "Monthly", quarterly: "Every 3 months", yearly: "Yearly" };
+const PER_YEAR: Record<RecurringItem["cadence"], number> = { weekly: 52, monthly: 12, quarterly: 4, yearly: 1 };
+
 const GOAL_COLORS = ["#E8A00B", "#2FB673", "#3B8BF6", "#E8508A", "#7D8EFF", "#12B5B0"];
 
 export default function WealthView(props: {
   accounts: Account[];
   goals: Goal[];
   trend: { month: string; value: number }[];
-  recurring: Recurring[];
-  today: number;
+  progress: Record<string, GoalProg>;
+  subscriptions: RecurringItem[];
+  people: PersonBalance[];
+  todayIso: string;
   sample: boolean;
 }) {
   const { cats } = useApp();
@@ -32,7 +39,11 @@ export default function WealthView(props: {
   const prev = props.trend.length > 1 ? props.trend[props.trend.length - 2].value : null;
   const change = prev !== null ? total - prev : null;
   const groups = (Object.keys(TYPE_LABEL) as AccountType[]).map((t) => [t, props.accounts.filter((a) => a.type === t)] as const).filter(([, l]) => l.length);
-  const recurTotal = props.recurring.reduce((s, r) => s + r.amount, 0);
+  const subs = props.subscriptions;
+  const recurTotal = subs.reduce((s, r) => s + r.monthly, 0);
+  const yearTotal = subs.reduce((s, r) => s + r.amount * PER_YEAR[r.cadence], 0);
+  const rises = subs.filter((r) => r.priceChange && r.priceChange.to > r.priceChange.from);
+  const prog = (g: Goal) => props.progress[g.id] ?? { saved: g.saved_paise, auto: 0, count: 0, last: null };
   const catById = Object.fromEntries(cats.map((c) => [c.id, c]));
 
   return (
@@ -57,19 +68,20 @@ export default function WealthView(props: {
       </section>
 
       <section className="o3">
-        <div className="section-h"><h2>Goals</h2><span className="hint">{props.goals.filter((g) => g.saved_paise < g.target_paise).length} in progress</span></div>
+        <div className="section-h"><h2>Goals</h2><span className="hint">{props.goals.filter((g) => prog(g).saved < g.target_paise).length} in progress</span></div>
         <div className="goals">
           {props.goals.map((g, gi) => {
-            const done = g.saved_paise >= g.target_paise;
+            const saved = prog(g).saved;
+            const done = saved >= g.target_paise;
             return (
               <div key={g.id} className="goal m-rise" style={{ animationDelay: `${120 + gi * 70}ms` }}>
                 <div style={{ position: "relative", width: 64 }}>
-                  <Ring value={g.saved_paise / g.target_paise} color={g.color} />
-                  <span className="num" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 600 }}>{done ? "✓" : `${Math.round((g.saved_paise / g.target_paise) * 100)}%`}</span>
+                  <Ring value={Math.min(1, saved / g.target_paise)} color={g.color} />
+                  <span className="num" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 600 }}>{done ? "✓" : `${Math.round((saved / g.target_paise) * 100)}%`}</span>
                 </div>
                 <b className="ellipsis">{g.name}</b>
-                <small className="num muted">{inr(g.saved_paise)} / {inr(g.target_paise)}</small>
-                <small className="muted">{done ? "Goal reached" : g.target_date ? `By ${monthShort(g.target_date)} ${g.target_date.slice(0, 4)}` : "No deadline"}</small>
+                <small className="num muted">{inr(saved)} / {inr(g.target_paise)}</small>
+                <small className="muted">{g.link_kind ? <span className="autofill" title="Fills itself">⟳ </span> : null}{done ? "Goal reached" : g.target_date ? `By ${monthShort(g.target_date)} ${g.target_date.slice(0, 4)}` : "No deadline"}</small>
                 <button className="addm" onClick={() => setSheet({ kind: "goal", goal: g })}>{done ? "Details" : "Add money"}</button>
               </div>
             );
@@ -97,30 +109,56 @@ export default function WealthView(props: {
       </section>
 
       <section className="card o4" id="recurring">
-        <div className="section-h"><h2>Recurring</h2><span className="hint num">{inr(recurTotal)}/mo</span></div>
-        {props.recurring.length ? props.recurring.map((r) => {
-          const paid = r.paidThisMonth;
+        <div className="section-h"><h2>Subscriptions &amp; bills</h2><span className="hint num">{inr(recurTotal)}/mo · {inrCompact(yearTotal)}/yr</span></div>
+        {rises.length > 0 && (
+          <div className="note warn" style={{ marginBottom: 8 }}>
+            <b>{rises.length === 1 ? `${rises[0].name} costs more now` : `${rises.length} prices went up`}</b>
+            {rises.map((r) => `${r.name}: ${inr(r.priceChange!.from)} → ${inr(r.priceChange!.to)}`).join(" · ")}. That&apos;s {inr(rises.reduce((s, r) => s + (r.priceChange!.to - r.priceChange!.from) * PER_YEAR[r.cadence], 0))} more a year.
+          </div>
+        )}
+        {subs.length ? subs.map((r) => {
+          const until = Math.round((Date.parse(r.next) - Date.parse(props.todayIso)) / 86400000);
+          const up = !!r.priceChange && r.priceChange.to > r.priceChange.from;
           return (
-            <div key={r.key} className="list-row">
+            <div key={r.key} className="list-row sub-row">
               <CatIcon name={r.name} color={catById[r.category_id]?.color ?? "var(--muted)"} size="sm" />
-              <div className="grow"><b className="ellipsis">{r.name}</b><small className="muted">Monthly · around the {ordinal(r.day)}</small></div>
-              <span className={`chip ${paid ? "good" : "warn"}`}>{paid ? "Paid" : r.day < props.today ? "Late?" : "Due"}</span>
-              <b className="num" style={{ minWidth: 64, textAlign: "right" }}>{inr(r.amount)}</b>
+              <div className="grow">
+                <b className="ellipsis">{r.name}</b>
+                <small className="muted">{CADENCE[r.cadence]} · last {shortDate(r.last)} · {until < 0 ? `was due ${shortDate(r.next)}` : until === 0 ? "due today" : until === 1 ? "due tomorrow" : `next ${shortDate(r.next)}`}</small>
+              </div>
+              {up ? <span className="chip bad">▲ {inr(r.priceChange!.to - r.priceChange!.from)}</span> : r.dueSoon ? <span className="chip warn">Soon</span> : null}
+              <span className="num sub-amt"><b>{r.variable ? "~" : ""}{inr(r.amount)}</b><small className="muted">{inrCompact(r.amount * PER_YEAR[r.cadence])}/yr</small></span>
             </div>
           );
-        }) : <p className="empty">Bills and subscriptions appear here once the same charge shows up two months running.</p>}
+        }) : <p className="empty">Subscriptions, SIPs and bills appear here once the same charge shows up twice on a regular schedule.</p>}
+      </section>
+
+      <section className="card o4" id="people">
+        <div className="section-h"><h2>Money with friends</h2><span className="hint">last 6 months</span></div>
+        {props.people.length ? props.people.map((p) => (
+          <div key={p.key} className="list-row">
+            <CatIcon name={p.name} color={p.net > 0 ? "var(--good)" : "var(--warn)"} size="sm" />
+            <div className="grow">
+              <b className="ellipsis">{p.name}</b>
+              <small className="muted">Sent {inr(p.sent)} · got {inr(p.received)} · last {shortDate(p.last)}</small>
+            </div>
+            <span className="num sub-amt">
+              <b className={p.net > 0 ? "good" : "warn"}>{inr(Math.abs(p.net))}</b>
+              <small className="muted">{p.net > 0 ? "you gave more" : "you got more"}</small>
+            </span>
+          </div>
+        )) : <p className="empty">When you send money to friends over UPI and they pay you back, the running balance with each person shows here.</p>}
       </section>
 
       </div>
       </div>
 
       {sheet?.kind === "account" && <AccountSheet account={sheet.account} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "goal" && (sheet.goal ? <FundGoalSheet goal={sheet.goal} onClose={() => setSheet(null)} /> : <NewGoalSheet onClose={() => setSheet(null)} />)}
+      {sheet?.kind === "goal" && (sheet.goal ? <FundGoalSheet goal={sheet.goal} prog={prog(sheet.goal)} onClose={() => setSheet(null)} /> : <NewGoalSheet onClose={() => setSheet(null)} />)}
     </>
   );
 }
 
-const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
 
 function useSubmit(onClose: () => void) {
   const { toast } = useApp();
@@ -190,6 +228,8 @@ function NewGoalSheet({ onClose }: { onClose: () => void }) {
   const [target, setTarget] = useState("");
   const [date, setDate] = useState("");
   const [color, setColor] = useState(GOAL_COLORS[0]);
+  const [fill, setFill] = useState<Fill>("none");
+  const [payee, setPayee] = useState("");
   const { pending, error, run } = useSubmit(onClose);
   return (
     <Sheet title="New goal" onClose={onClose}>
@@ -204,26 +244,58 @@ function NewGoalSheet({ onClose }: { onClose: () => void }) {
           <button key={c} type="button" aria-label={`Colour ${c}`} aria-pressed={c === color} onClick={() => setColor(c)} style={{ width: 34, height: 34, borderRadius: 11, border: c === color ? "2px solid var(--fg)" : "1px solid var(--line)", background: c, cursor: "pointer" }} />
         ))}
       </div>
+      <AutoFill fill={fill} setFill={setFill} payee={payee} setPayee={setPayee} />
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn" disabled={pending || !name.trim() || !(parseFloat(target) > 0)} onClick={() => run(() => createGoal({ name, target_paise: toPaise(parseFloat(target.replace(/,/g, ""))), target_date: date || null, color }), `${name} added`)}>
+      <button className="btn" disabled={pending || !name.trim() || !(parseFloat(target) > 0) || (fill === "payee" && payee.trim().length < 2)} onClick={() => run(() => createGoal({ name, target_paise: toPaise(parseFloat(target.replace(/,/g, ""))), target_date: date || null, color, link: fill === "none" ? null : { kind: fill, value: fill === "payee" ? payee : null } }), `${name} added`)}>
         {pending ? "Saving…" : "Create goal"}
       </button>
     </Sheet>
   );
 }
 
-function FundGoalSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
-  const { celebrate } = useApp();
-  const left = goal.target_paise - goal.saved_paise;
+type Fill = "none" | "invest" | "payee";
+
+function AutoFill({ fill, setFill, payee, setPayee }: { fill: Fill; setFill: (f: Fill) => void; payee: string; setPayee: (v: string) => void }) {
+  return (
+    <>
+      <div className="lbl">FILL IT AUTOMATICALLY</div>
+      <div className="seg" aria-label="Fill automatically">
+        {([["none", "Off"], ["invest", "From my SIPs"], ["payee", "From a payee"]] as const).map(([k, l]) => (
+          <button key={k} type="button" aria-pressed={fill === k} onClick={() => setFill(k)}>{l}</button>
+        ))}
+      </div>
+      {fill === "payee" && <input className="field" aria-label="Payee name or UPI ID" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Zerodha, HDFC RD, or a UPI ID" maxLength={60} />}
+      {fill !== "none" && <p className="hint">{fill === "invest" ? "Every SIP or investment from today counts towards this goal." : "Every payment from today whose name or UPI ID contains this counts towards the goal."} Money you add by hand still counts too.</p>}
+    </>
+  );
+}
+
+function FundGoalSheet({ goal, prog, onClose }: { goal: Goal; prog: GoalProg; onClose: () => void }) {
+  const { celebrate, toast } = useApp();
+  const router = useRouter();
+  const left = goal.target_paise - prog.saved;
+  const [fill, setFill] = useState<Fill>(goal.link_kind ?? "none");
+  const [payee, setPayee] = useState(goal.link_value ?? "");
+  const [linkBusy, startLink] = useTransition();
+  const linkChanged = fill !== (goal.link_kind ?? "none") || (fill === "payee" && payee.trim().toLowerCase() !== (goal.link_value ?? ""));
+  const saveLink = () => startLink(async () => {
+    const r = await setGoalLink(goal.id, fill === "none" ? null : { kind: fill, value: fill === "payee" ? payee : null });
+    if (!r.ok) return toast(r.error);
+    router.refresh();
+    toast(fill === "none" ? "Auto-fill turned off" : "This goal now fills itself");
+  });
   const [amount, setAmount] = useState(left > 0 ? String(Math.min(1000, left / 100)) : "");
   const [confirm, setConfirm] = useState(false);
   const { pending, error, run } = useSubmit(onClose);
   return (
     <Sheet title={goal.name} onClose={onClose}>
       <div className="row">
-        <div><div className="eyebrow">Saved</div><div className="num" style={{ fontSize: 26, fontWeight: 600 }}>{inr(goal.saved_paise)}</div><div className="hint">{left > 0 ? `${inr(left)} to go` : "Goal reached"}</div></div>
-        <div style={{ position: "relative" }}><Ring value={goal.saved_paise / goal.target_paise} color={goal.color} size={72} width={8} /></div>
+        <div><div className="eyebrow">Saved</div><div className="num" style={{ fontSize: 26, fontWeight: 600 }}>{inr(prog.saved)}</div><div className="hint">{left > 0 ? `${inr(left)} to go` : "Goal reached"}</div></div>
+        <div style={{ position: "relative" }}><Ring value={Math.min(1, prog.saved / goal.target_paise)} color={goal.color} size={72} width={8} /></div>
       </div>
+      {goal.link_kind && <p className="hint">⟳ {inr(prog.auto)} came in automatically from {prog.count} payment{prog.count === 1 ? "" : "s"}{prog.last ? `, latest ${shortDate(prog.last)}` : ""}. {inr(goal.saved_paise)} added by hand.</p>}
+      <AutoFill fill={fill} setFill={setFill} payee={payee} setPayee={setPayee} />
+      {linkChanged && <button className="btn ghost sm" disabled={linkBusy || (fill === "payee" && payee.trim().length < 2)} onClick={saveLink}>{linkBusy ? "Saving…" : "Save auto-fill"}</button>}
       {left > 0 && (
         <>
           <label className="lbl" htmlFor="fund-amt">ADD (₹)<input id="fund-amt" className="field num" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>

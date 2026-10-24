@@ -1,7 +1,10 @@
 import WealthView from "@/components/wealth/WealthView";
 import { getAccounts, getCategories, getGoals, getRecentTransactions, getSnapshots } from "@/lib/data";
-import { detectRecurring, netWorth } from "@/lib/finance";
-import { dayOf, monthStart, todayISO } from "@/lib/dates";
+import { netWorth } from "@/lib/finance";
+import { recurringPayments } from "@/lib/analytics";
+import { goalProgress } from "@/lib/goals";
+import { peopleBalances } from "@/lib/people";
+import { monthStart, todayISO } from "@/lib/dates";
 
 export const metadata = { title: "Wealth · Expensly" };
 
@@ -13,13 +16,19 @@ export default async function WealthPage() {
     ...snapshots.filter((s) => s.month < month).slice(-5).map((s) => ({ month: s.month, value: s.assets_paise - s.liabilities_paise })),
     ...(accounts.length ? [{ month, value: netWorth(accounts).total }] : []),
   ];
+  const progress = Object.fromEntries(goals.map((g) => {
+    const p = goalProgress(g, tx);
+    return [g.id, { saved: p.saved, auto: p.auto, count: p.count, last: p.last }];
+  }));
   return (
     <WealthView
       accounts={accounts}
       goals={goals}
+      progress={progress}
       trend={trend}
-      recurring={detectRecurring(tx, today, cats)}
-      today={dayOf(today)}
+      subscriptions={recurringPayments(tx, cats, today)}
+      people={peopleBalances(tx)}
+      todayIso={today}
       sample={tx.some((t) => t.source === "sample") || accounts.some((a) => a.is_sample)}
     />
   );

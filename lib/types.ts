@@ -46,6 +46,11 @@ export type Goal = {
   target_date: string | null;
   color: string;
   is_sample: boolean;
+  /** Fills itself: "invest" counts SIPs and other investments, "payee" counts payments matching link_value. */
+  link_kind?: "invest" | "payee" | null;
+  link_value?: string | null;
+  link_from?: string | null;
+  created_at?: string;
 };
 
 export type BudgetRow = { category_id: string; month: string; limit_paise: number };

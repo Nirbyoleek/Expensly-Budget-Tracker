@@ -287,7 +287,7 @@ export function classify(
       if (cat && cat !== "fees")
         return done({ category_id: cat, subcategory_id: sub, confidence: spendBrand ? 0.9 : 0.75, refund: true, reasons: [`Money back from ${brand?.name ?? merchantName}, so it reduces your ${cat === "shop" ? "shopping" : "spending"} rather than counting as income`] });
       if (refundWords)
-        return done({ category_id: "shop", subcategory_id: "other", confidence: 0.5, refund: true, reasons: ["Looks like a refund, but the shop isn't clear"] });
+        return done({ category_id: "uncat", subcategory_id: null, confidence: 0.5, refund: true, reasons: ["Looks like a refund, but the shop isn't clear"] });
     }
     if (brand?.cat === "invest") return done({ category_id: "invest", subcategory_id: brand.sub, confidence: 0.85, reasons: [`Money back from ${brand.name}: a redemption or withdrawal`] });
     const fromPerson = UPI_RE.test(raw) && looksLikePerson(merchantName, UPI_P2P_RE.test(raw));
@@ -336,8 +336,8 @@ export function classify(
   if (kw) return done({ category_id: kw.cat, subcategory_id: kw.sub, confidence: kw.conf, reasons: [`The name mentions “${kw.word}”`] });
 
   // 9. fallback
-  if (MERCHANT_QR_RE.test(raw)) return done({ category_id: "shop", subcategory_id: "other", confidence: 0.4, reasons: ["Paid at a shop's QR code, but the shop is unknown"] });
-  return done({ category_id: "shop", subcategory_id: "other", confidence: 0.3, reasons: ["Expensly doesn't know this merchant yet"] });
+  if (MERCHANT_QR_RE.test(raw)) return done({ category_id: "uncat", subcategory_id: null, confidence: 0.4, reasons: ["Paid at a shop's QR code, but the shop is unknown", "Pick a category once and Expensly remembers this payee"] });
+  return done({ category_id: "uncat", subcategory_id: null, confidence: 0.3, reasons: ["Expensly doesn't know this merchant yet", "Pick a category once and Expensly remembers it"] });
 }
 
 /* ───────────────────────── memory ───────────────────────── */

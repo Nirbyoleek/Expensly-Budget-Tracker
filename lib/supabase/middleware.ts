@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, isConfigured } from "@/lib/env";
 
-const PUBLIC = ["/login", "/setup", "/auth", "/api/ingest", "/api/cron", "/manifest.webmanifest", "/sw.js", "/privacy"];
+const PUBLIC = ["/login", "/setup", "/auth", "/api/ingest", "/api/cron", "/manifest.webmanifest", "/sw.js", "/privacy", "/offline"];
 
 export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;

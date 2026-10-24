@@ -1,5 +1,5 @@
 import { detectRecurring, monthView, shiftDays, spendBetween } from "./finance";
-import { dayOf, monthStart } from "./dates";
+import { addMonths, dayOf, monthLong, monthStart } from "./dates";
 import type { BudgetRow, Category, Transaction } from "./types";
 
 export type Reminder = { key: string; title: string; body: string; url: string };
@@ -72,6 +72,15 @@ export function remindersFor(args: {
         body: diff === null ? "Open Expensly to see where it went." : diff > 0 ? `${diff}% more than the week before. Tap to see what changed.` : diff < 0 ? `${-diff}% less than the week before. Nice.` : "About the same as the week before.",
         url: "/insights",
       });
+    }
+  }
+  // The 1st: last month, wrapped up.
+  if (prefs.weekly && dayOf(today) === 1) {
+    const prev = addMonths(monthStart(today), -1);
+    const spent = spendBetween(real, cats, prev, shiftDays(today, -1));
+    if (spent > 0) {
+      const name = monthLong(prev).split(" ")[0];
+      out.push({ key: `review:${prev.slice(0, 7)}`, title: `Your ${name} in review`, body: `${rs(spent)} spent. See where it went, what changed and your top places.`, url: `/review/${prev.slice(0, 7)}` });
     }
   }
   return out;

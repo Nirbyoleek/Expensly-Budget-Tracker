@@ -1,7 +1,56 @@
 /* Expensly service worker: shows reminders. Pushes arrive empty; the messages are fetched with
    the signed-in cookie so nothing personal travels through the push service. */
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+const STATIC = "expensly-static-v1";
+const PAGES = "expensly-pages-v1";
+// Pages kept for offline use. Only the main tabs, and only after you've opened them signed in.
+const APP_PAGES = ["/home", "/activity", "/budgets", "/insights", "/wealth"];
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(STATIC).then((c) => c.addAll(["/offline", "/icons/icon-192.png"])).catch(() => undefined).then(() => self.skipWaiting()));
+});
+self.addEventListener("activate", (e) => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k.startsWith("expensly-") && k !== STATIC && k !== PAGES) await caches.delete(k);
+  await self.clients.claim();
+})()));
+
+self.addEventListener("message", (e) => {
+  if (e.data === "clear-pages") e.waitUntil(caches.delete(PAGES));
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Build files never change once published (their names carry a hash): cache first.
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+    event.respondWith(caches.open(STATIC).then(async (c) => {
+      const hit = await c.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) c.put(req, res.clone());
+      return res;
+    }));
+    return;
+  }
+
+  // Page loads: always the network when there is one; the last copy (or an offline page) when not.
+  if (req.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        const path = new URL(res.url || req.url).pathname;
+        if (path === "/login") await caches.delete(PAGES);
+        else if (res.ok && !res.redirected && APP_PAGES.includes(url.pathname) && !url.search) (await caches.open(PAGES)).put(url.pathname, res.clone());
+        return res;
+      } catch (_) {
+        const cached = APP_PAGES.includes(url.pathname) ? await (await caches.open(PAGES)).match(url.pathname) : null;
+        return cached || (await caches.match("/offline")) || new Response("You're offline.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } });
+      }
+    })());
+  }
+});
 
 self.addEventListener("push", (event) => {
   event.waitUntil((async () => {

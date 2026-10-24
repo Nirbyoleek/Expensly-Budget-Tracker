@@ -50,6 +50,11 @@ export async function POST(req: Request) {
   const rows = prepareRows(parseSms(text, todayISO(), "shortcut"), (rules as MerchantRule[]) ?? []);
   if (!rows.length) return json({ added: 0, message: "No amount found in that message, so nothing was added." });
 
+  // ?dry=1: check the token and show how the message would be read, without saving anything.
+  if (new URL(req.url).searchParams.get("dry") === "1") {
+    return json({ added: 0, dryRun: true, message: "Connected ✓ This would be added: " + rows.map((r) => `${r.merchant_name} ₹${Math.abs(r.amount_paise / 100).toLocaleString("en-IN")}`).join(", "), rows: rows.map((r) => ({ date: r.date, merchant: r.merchant_name, amount: r.amount_paise / 100, category: r.category_id })) });
+  }
+
   const { data, error } = await admin
     .from("transactions")
     .upsert(

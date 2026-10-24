@@ -93,3 +93,11 @@ describe("detailed categories from real statement lines", () => {
     expect(b.category_id).toBe("food"); // unreviewed guesses don't teach
   });
 });
+
+describe("unknown merchants", () => {
+  it("go to Uncategorised instead of being guessed as Shopping", () => {
+    const r = one("ZXQV TRADERS PVT 88123", -740);
+    expect(r.category_id).toBe("uncat");
+    expect(r.subcategory_id).toBeNull();
+  });
+});

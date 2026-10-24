@@ -93,7 +93,7 @@ export async function suggestCategories(): Promise<Result<{ suggestions: CatSugg
   try {
     const { supabase, user, today, ctx } = await context();
     const unsure = ctx.tx
-      .filter((t) => !t.reviewed && t.category_id !== "xfer" && t.source !== "sample" && (!t.subcategory_id || (t.category_id === "shop" && t.subcategory_id === "other") || t.category_id === "people"))
+      .filter((t) => !t.reviewed && t.category_id !== "xfer" && t.source !== "sample" && (!t.subcategory_id || t.category_id === "uncat" || (t.category_id === "shop" && t.subcategory_id === "other") || t.category_id === "people"))
       .slice(0, 40);
     if (!unsure.length) return { ok: true, suggestions: [], looked: 0 };
     const gate = await takeAi(supabase, user, today);
@@ -166,7 +166,7 @@ export async function suggestBudgets(): Promise<Result<{ summary: string; items:
     const current = resolveBudgets(ctx.budgetRows, ctx.cats, month);
     const thisMonth = spentByCategory(inMonth(ctx.tx, month), ctx.cats);
     const plan = resolvePlan(ctx.incomePlans, month);
-    const spendCats = ctx.cats.filter((c) => c.kind === "spend");
+    const spendCats = ctx.cats.filter((c) => c.kind === "spend" && c.id !== "uncat");
     const rows = spendCats
       .map((c) => ({ id: c.id, name: c.name, avg: Math.round(spends.reduce((s, x) => s + (x[c.id] ?? 0), 0) / 3 / 100), last3: spends.map((x) => Math.round((x[c.id] ?? 0) / 100)), this_month: Math.round((thisMonth[c.id] ?? 0) / 100), budget: Math.round((current[c.id] ?? 0) / 100) }))
       .filter((r) => r.avg > 0 || r.budget > 0 || r.this_month > 0);

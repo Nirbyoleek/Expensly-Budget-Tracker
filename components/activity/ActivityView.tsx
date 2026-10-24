@@ -24,7 +24,7 @@ const pageWindow = (page: number, pages: number) => {
   return Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
 };
 
-export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[]; initial: { filter?: string; day?: string; q?: string; sub?: string }; aiOn?: boolean }) {
+export default function ActivityView({ tx, initial, aiOn, allMonths = [] }: { tx: Transaction[]; initial: { filter?: string; day?: string; q?: string; sub?: string; month?: string }; aiOn?: boolean; allMonths?: string[] }) {
   const { cats, toast, openAdd, celebrate } = useApp();
   const router = useRouter();
   const [filter, setFilter] = useState(initial.filter ?? "all");
@@ -32,8 +32,14 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
   const [q, setQ] = useState(initial.q ?? "");
   const [sub, setSub] = useState(initial.sub ?? "");
   // Months with transactions, newest first. The view opens on the newest (or the day you came from).
-  const months = useMemo(() => [...new Set(tx.map((t) => t.date.slice(0, 7)))].sort().reverse(), [tx]);
-  const [month, setMonth] = useState<string>(initial.day?.slice(0, 7) ?? months[0] ?? "all");
+  // Older months beyond what's loaded come from the server when picked.
+  const loaded = useMemo(() => new Set(tx.map((t) => t.date.slice(0, 7))), [tx]);
+  const months = useMemo(() => [...new Set([...loaded, ...allMonths])].sort().reverse(), [loaded, allMonths]);
+  const [month, setMonthState] = useState<string>(initial.month ?? initial.day?.slice(0, 7) ?? months[0] ?? "all");
+  const setMonth = (m: string) => {
+    setMonthState(m);
+    if (m !== "all" && !loaded.has(m)) router.push(`/activity?month=${m}`, { scroll: false });
+  };
   const [pageState, setPageState] = useState({ key: "", page: 1 });
   const listTop = useRef<HTMLDivElement>(null);
   const [merchant, setMerchant] = useState<string | null>(null);
@@ -49,7 +55,7 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
 
   // Searching and reviewing look across every month; browsing goes a month at a time.
   const searching = !!q.trim();
-  const scope = searching || filter === "review" ? "all" : month;
+  const scope = searching || filter === "review" || filter === "uncat" ? "all" : month;
 
   const list = useMemo(() => {
     let l = scope === "all" ? rows : rows.filter((t) => t.date.startsWith(scope));
@@ -157,10 +163,11 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
           {day && <button className="fbtn" aria-pressed="true" onClick={() => setDay("")}>{shortDate(day)} ✕</button>}
           {fb("all", "All")}
           {fb("review", `To review · ${toReview}`)}
+          {rows.some((t) => t.category_id === "uncat") && fb("uncat", `Uncategorised · ${rows.filter((t) => t.category_id === "uncat").length}`, catById.uncat?.color)}
           {fb("in", "Money in", "var(--good)")}
           {fb("out", "Money out")}
           {fb("income", "Income", catById.income?.color)}
-          {cats.filter((c) => c.kind === "spend" || c.id === "xfer").map((c) => fb(c.id, c.name, c.color))}
+          {cats.filter((c) => (c.kind === "spend" && c.id !== "uncat") || c.id === "xfer").map((c) => fb(c.id, c.name, c.color))}
         </div>
         {TAXONOMY_BY_ID[filter]?.subs.length ? (
           <div className="subchips" role="radiogroup" aria-label="Narrow down">
@@ -190,9 +197,9 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
       <div ref={listTop} className="act-monthbar">
         {scope === "all" ? (
           <div className="act-month-title">
-            <b>{searching ? "Search results" : filter === "review" ? "To review" : "All months"}</b>
-            <small>{searching || filter === "review" ? "across every month" : `${months.length} months`}</small>
-            {!searching && filter !== "review" && months[0] && <button className="link" onClick={() => setMonth(months[0])}>By month</button>}
+            <b>{searching ? "Search results" : filter === "review" ? "To review" : filter === "uncat" ? "Uncategorised" : "All months"}</b>
+            <small>{searching || filter === "review" || filter === "uncat" ? "across every month" : `${months.length} months`}</small>
+            {!searching && filter !== "review" && filter !== "uncat" && months[0] && <button className="link" onClick={() => setMonth(months[0])}>By month</button>}
           </div>
         ) : (
           <>
@@ -253,7 +260,7 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
             );
           })
         ) : (
-          <div className="empty">{tx.length ? (scope === "all" ? "Nothing matches. Clear the search or pick another filter." : `Nothing here for ${monthLong(`${scope}-01`)}. Try another month or filter.`) : "No transactions yet. Tap + to add your first."}</div>
+          <div className="empty">{scope !== "all" && !loaded.has(scope) ? `Loading ${monthLong(`${scope}-01`)}…` : tx.length ? (scope === "all" ? "Nothing matches. Clear the search or pick another filter." : `Nothing here for ${monthLong(`${scope}-01`)}. Try another month or filter.`) : "No transactions yet. Tap + to add your first."}</div>
         )}
         {pages > 1 && (
           <nav className="pager" aria-label="Pages">

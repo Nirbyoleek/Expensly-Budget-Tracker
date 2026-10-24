@@ -198,7 +198,7 @@ Answers come with charts where they help, and suggested follow-up questions. You
 
 AI also powers **Today's brief**, **Plan with AI** for budgets, **Sort with AI** for unclear transactions, and sorting unfamiliar merchants when you import.
 
-**Fair use.** Each person gets 30 AI requests a day. Expensly uses fast, efficient models and switches to a backup provider automatically if the main one is busy, so it stays available.
+**Fair use.** Each person gets 10 AI requests a day. Expensly uses fast, efficient models and switches to a backup provider automatically if the main one is busy, so it stays available.
 
 ---
 
@@ -235,7 +235,7 @@ The full plain-language notice is in the app at **/privacy**.
 ## FAQ
 
 **Is it free?**
-Yes. AI features have a fair-use limit of 30 requests per person per day.
+Yes. AI features have a fair-use limit of 10 requests per person per day.
 
 **Do I need to connect my bank?**
 No. You import the statements your bank already gives you. Nothing connects to your bank.

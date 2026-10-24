@@ -278,3 +278,28 @@ export function describeCheck(c: StatementCheck): { tone: "good" | "warn" | "non
   if (c.blank) { tone = "warn"; parts.push(`⚠ ${c.blank} row${c.blank === 1 ? " has" : "s have"} no description, so ${c.blank === 1 ? "it" : "they"} can't be categorised well. The netbanking CSV export usually has them`); }
   return { tone, text: parts.join(" · ") };
 }
+
+/* ───────────────────────── closing balance ───────────────────────── */
+
+/**
+ * The account balance at the end of a statement: the running balance on its latest row.
+ * Statements list oldest-first or newest-first, so same-day ties go to the row printed last
+ * (oldest-first) or first (newest-first).
+ */
+export function closingBalance(rows: RawRow[]): { balance_paise: number; date: string } | null {
+  const withBal = rows.filter((r) => r.balance_paise !== undefined && !Number.isNaN(r.balance_paise));
+  if (!withBal.length) return null;
+  const newestFirst = withBal.length > 1 && withBal[0].date > withBal[withBal.length - 1].date;
+  const ordered = newestFirst ? [...withBal].reverse() : withBal;
+  const latest = ordered.reduce((best, r) => (r.date >= best.date ? r : best), ordered[0]);
+  return { balance_paise: latest.balance_paise!, date: latest.date };
+}
+
+/** The last four digits of the account or card number printed on a statement, if any. */
+export function accountLast4(text: string): string | null {
+  const m = text.match(/\b(?:a\/?c|acct|account|card)\s*(?:no\.?|number|num)?\s*[:.\-]?\s*([0-9xX*•][0-9xX*• \-]{3,24})/i);
+  if (!m) return null;
+  const digits = m[1].replace(/[^0-9xX*•]/g, "");
+  const last = digits.match(/(\d{4})$/);
+  return last ? last[1] : null;
+}

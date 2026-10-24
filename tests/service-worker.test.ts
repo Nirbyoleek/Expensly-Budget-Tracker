@@ -56,3 +56,56 @@ describe("service worker", () => {
     expect(w.opened).toEqual(["/wealth#recurring"]);
   });
 });
+
+describe("service worker: offline", () => {
+  function offlineWorker(network: (req: { url: string; mode?: string }) => Promise<Response>) {
+    const stores = new Map<string, Map<string, Response>>();
+    const open = async (name: string) => {
+      if (!stores.has(name)) stores.set(name, new Map());
+      const m = stores.get(name)!;
+      const key = (r: string | { url: string }) => new URL(typeof r === "string" ? r : r.url, "https://app.test").pathname;
+      return { match: async (r: string | { url: string }) => m.get(key(r))?.clone(), put: async (r: string | { url: string }, res: Response) => { m.set(key(r), res); }, addAll: async (urls: string[]) => { for (const u of urls) m.set(u, new Response(`cached ${u}`)); } };
+    };
+    const caches = {
+      open,
+      delete: async (n: string) => stores.delete(n),
+      keys: async () => [...stores.keys()],
+      match: async (u: string) => { for (const m of stores.values()) if (m.has(u)) return m.get(u)!.clone(); return undefined; },
+    };
+    const handlers: Record<string, (e: unknown) => void> = {};
+    const self = { addEventListener: (t: string, h: (e: unknown) => void) => { handlers[t] = h; }, skipWaiting: vi.fn(), clients: { claim: vi.fn() }, location: { origin: "https://app.test" }, registration: {} };
+    vm.runInNewContext(readFileSync(path.join(__dirname, "..", "public", "sw.js"), "utf8"), { self, fetch: network, caches, URL, Response, Promise });
+    const request = async (url: string, mode = "navigate", method = "GET") => {
+      let res: Promise<Response> | undefined;
+      handlers.fetch({ request: { url: `https://app.test${url}`, mode, method }, respondWith: (p: Promise<Response>) => { res = p; } });
+      return res ? await res : undefined;
+    };
+    const install = async () => { let p: Promise<unknown> = Promise.resolve(); handlers.install({ waitUntil: (x: Promise<unknown>) => { p = x; } }); await p; };
+    const message = async (data: string) => { let p: Promise<unknown> = Promise.resolve(); handlers.message({ data, waitUntil: (x: Promise<unknown>) => { p = x; } }); await p; };
+    return { request, install, message, stores };
+  }
+
+  it("serves the last copy of a tab when the network is gone, and the offline page otherwise", async () => {
+    let online = true;
+    const w = offlineWorker(async (req) => { if (!online) throw new TypeError("Failed to fetch"); return new Response(`fresh ${new URL(req.url).pathname}`); });
+    await w.install();
+    expect(await (await w.request("/home"))!.text()).toBe("fresh /home");
+    online = false;
+    expect(await (await w.request("/home"))!.text()).toBe("fresh /home");
+    expect(await (await w.request("/settings"))!.text()).toBe("cached /offline");
+  });
+
+  it("leaves API calls, posts and other sites alone", async () => {
+    const w = offlineWorker(async () => new Response("x"));
+    expect(await w.request("/api/export", "cors")).toBeUndefined();
+    expect(await w.request("/home", "navigate", "POST")).toBeUndefined();
+  });
+
+  it("forgets saved pages when you sign out", async () => {
+    const w = offlineWorker(async (req) => new Response(`fresh ${new URL(req.url).pathname}`));
+    await w.request("/activity");
+    expect(w.stores.get("expensly-pages-v1")?.size).toBe(1);
+    await w.message("clear-pages");
+    expect(w.stores.has("expensly-pages-v1")).toBe(false);
+  });
+});

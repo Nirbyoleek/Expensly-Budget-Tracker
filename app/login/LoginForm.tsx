@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { signInWithPassword, signUpWithPassword, startGoogleSignIn } from "@/app/actions";
 
 type Mode = "signin" | "signup";
@@ -16,6 +16,10 @@ const GoogleIcon = () => (
 
 /** Email + password (no emails are ever sent), plus Google once it's switched on. */
 export default function LoginForm({ google }: { google: boolean }) {
+  // Signed out: forget the pages this phone kept for offline use, and anything waiting to sync.
+  useEffect(() => {
+    try { navigator.serviceWorker?.controller?.postMessage("clear-pages"); localStorage.removeItem("expensly.offline-queue.v1"); } catch { /* not supported */ }
+  }, []);
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

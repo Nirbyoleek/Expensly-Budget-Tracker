@@ -124,13 +124,36 @@ const NewTx = z.object({
   reviewed: z.boolean().default(false),
 });
 
+const AccountLink = z.object({
+  id: z.string().uuid().optional(),
+  create: z.object({ name: z.string().trim().min(1).max(60), type: z.enum(["bank", "card"]), last4: z.string().regex(/^\d{4}$/).nullable().optional() }).optional(),
+  balance_paise: z.number().int().optional(),
+});
+
 export async function addTransactions(input: {
   rows: z.input<typeof NewTx>[];
   file?: { name: string; kind: "csv" | "pdf" | "text" | "sms" };
-}): Promise<ActionResult<{ added: number; skipped: number; importId: string | null }>> {
+  /** Which account this statement belongs to; its balance is set from the statement's closing balance. */
+  account?: z.input<typeof AccountLink>;
+}): Promise<ActionResult<{ added: number; skipped: number; importId: string | null; accountName?: string }>> {
   try {
     const { supabase } = await session();
     const rows = z.array(NewTx).min(1, "Nothing to add.").max(2000, "Import at most 2,000 rows at a time.").parse(input.rows);
+
+    let accountId: string | null = null, accountName: string | undefined;
+    if (input.account) {
+      const a = AccountLink.parse(input.account);
+      if (a.id) {
+        const patch = a.balance_paise !== undefined ? { balance_paise: a.balance_paise, updated_at: new Date().toISOString() } : {};
+        const { data, error } = await supabase.from("accounts").update(patch).eq("id", a.id).select("id,name").single();
+        if (error) throw new Error(error.message);
+        accountId = data.id as string; accountName = data.name as string;
+      } else if (a.create) {
+        const { data, error } = await supabase.from("accounts").insert({ name: a.create.name, type: a.create.type, last4: a.create.last4 ?? null, balance_paise: a.balance_paise ?? 0 }).select("id,name").single();
+        if (error) throw new Error(error.message);
+        accountId = data.id as string; accountName = data.name as string;
+      }
+    }
 
     let importId: string | null = null;
     if (input.file) {
@@ -145,16 +168,23 @@ export async function addTransactions(input: {
 
     const { data, error } = await supabase
       .from("transactions")
-      .upsert(rows.map((r) => ({ ...r, import_id: importId })), { onConflict: "user_id,dedupe_hash", ignoreDuplicates: true })
+      .upsert(rows.map((r) => ({ ...r, import_id: importId, ...(accountId ? { account_id: accountId } : {}) })), { onConflict: "user_id,dedupe_hash", ignoreDuplicates: true })
       .select("id");
     if (error) throw new Error(error.message);
     const added = data?.length ?? 0;
     if (importId) await supabase.from("imports").update({ added_count: added, skipped_count: rows.length - added }).eq("id", importId);
     done();
-    return { ok: true, added, skipped: rows.length - added, importId };
+    return { ok: true, added, skipped: rows.length - added, importId, accountName };
   } catch (e) {
     return fail(e);
   }
+}
+
+/** Accounts for the import screen's "which account is this?" picker. */
+export async function listAccounts(): Promise<{ id: string; name: string; type: string; last4: string | null; balance_paise: number }[]> {
+  const { supabase } = await session();
+  const { data } = await supabase.from("accounts").select("id,name,type,last4,balance_paise").eq("is_sample", false).order("created_at");
+  return (data as { id: string; name: string; type: string; last4: string | null; balance_paise: number }[]) ?? [];
 }
 
 /** Which of these hashes are already saved, so the preview can mark them before import. */
@@ -298,7 +328,9 @@ export async function reclassifyAll(dryRun = false): Promise<ActionResult<{ chan
       const c = prepareRow({ date: t.date, amount_paise: t.amount_paise, merchant_raw: t.merchant_raw, source: t.source === "shortcut" ? "shortcut" : t.source }, rules, memory);
       const next = { ...t };
       // Rows without a subcategory were filed by Expensly's older categoriser, not by you, so a confident new answer replaces them.
-      const oldGuess = t.reviewed && !t.subcategory_id && c.confidence >= 0.7;
+      // So were "Shopping · Other" rows: that used to be where unknown merchants landed.
+      const oldFallback = t.category_id === "shop" && t.subcategory_id === "other" && c.category_id !== "shop";
+      const oldGuess = t.reviewed && ((!t.subcategory_id && c.confidence >= 0.7) || oldFallback);
       if (t.reviewed && !oldGuess) {
         if (!t.subcategory_id && c.category_id === t.category_id && c.subcategory_id) { next.subcategory_id = c.subcategory_id; detailed++; }
       } else {
@@ -498,18 +530,28 @@ export async function deleteAccount(id: string): Promise<ActionResult> {
 
 /* ───────────────────────── goals ───────────────────────── */
 
-export async function createGoal(input: { name: string; target_paise: number; target_date: string | null; color: string }): Promise<ActionResult> {
+const GoalLinkInput = z
+  .object({ kind: z.enum(["invest", "payee"]), value: z.string().trim().min(2, "Type at least 2 letters of the payee.").max(60).nullable().optional() })
+  .refine((l) => l.kind !== "payee" || !!l.value, "Type the payee's name or UPI ID.")
+  .nullable()
+  .optional();
+
+const linkColumns = (link: z.infer<typeof GoalLinkInput>) =>
+  link ? { link_kind: link.kind, link_value: link.kind === "payee" ? link.value!.toLowerCase() : null, link_from: todayISO() } : { link_kind: null, link_value: null, link_from: null };
+
+export async function createGoal(input: { name: string; target_paise: number; target_date: string | null; color: string; link?: { kind: "invest" | "payee"; value?: string | null } | null }): Promise<ActionResult> {
   try {
     const { supabase } = await session();
-    const g = z
+    const { link, ...g } = z
       .object({
         name: z.string().trim().min(1, "Name the goal.").max(60),
         target_paise: z.number().int().positive("Set a target above zero."),
         target_date: IsoDate.nullable(),
         color: z.string().regex(/^#[0-9a-f]{6}$/i),
+        link: GoalLinkInput,
       })
       .parse(input);
-    const { error } = await supabase.from("goals").insert(g);
+    const { error } = await supabase.from("goals").insert({ ...g, ...linkColumns(link) });
     if (error) throw new Error(error.message);
     done();
     return { ok: true };
@@ -531,6 +573,20 @@ export async function contributeToGoal(goalId: string, amountPaise: number): Pro
     await supabase.from("goal_contributions").insert({ goal_id: id, amount_paise: amount });
     done();
     return { ok: true, reached: saved >= Number(goal.target_paise) };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Start (or stop) filling a goal automatically. Counting starts today so past money isn't double-counted. */
+export async function setGoalLink(goalId: string, link: { kind: "invest" | "payee"; value?: string | null } | null): Promise<ActionResult> {
+  try {
+    const { supabase } = await session();
+    const id = z.string().uuid().parse(goalId);
+    const { error } = await supabase.from("goals").update(linkColumns(GoalLinkInput.parse(link))).eq("id", id);
+    if (error) throw new Error(error.message);
+    done();
+    return { ok: true };
   } catch (e) {
     return fail(e);
   }

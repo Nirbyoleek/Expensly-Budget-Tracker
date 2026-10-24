@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeCheck, parseTablePages, reconcile, type PdfPage } from "../table";
+import { accountLast4, closingBalance, describeCheck, parseTablePages, reconcile, type PdfPage } from "../table";
 import { prepareRows } from "../core";
 
 const TODAY = "2026-10-23";
@@ -78,5 +78,26 @@ describe("reconcile", () => {
   it("warns when rows are missing", () => {
     const { check } = reconcile([r(-100, 900), r(-50, 700), r(-200, 300), r(-10, 100)]);
     expect(describeCheck(check).tone).toBe("warn");
+  });
+});
+
+describe("statement account details", () => {
+  const r = (date: string, bal: number) => ({ date, amount_paise: -100, merchant_raw: "x", source: "import" as const, balance_paise: bal * 100 });
+
+  it("closing balance is the latest row's, oldest-first or newest-first", () => {
+    expect(closingBalance([r("2026-09-01", 900), r("2026-09-15", 700), r("2026-09-30", 650)])).toEqual({ balance_paise: 65000, date: "2026-09-30" });
+    expect(closingBalance([r("2026-09-30", 650), r("2026-09-15", 700), r("2026-09-01", 900)])).toEqual({ balance_paise: 65000, date: "2026-09-30" });
+    // two rows on the last day: the one printed last in date order wins
+    expect(closingBalance([r("2026-09-29", 800), r("2026-09-30", 760), r("2026-09-30", 740)])?.balance_paise).toBe(74000);
+    expect(closingBalance([{ date: "2026-09-01", amount_paise: -1, merchant_raw: "x", source: "import" }])).toBeNull();
+  });
+
+  it.each([
+    ["Account No: XXXXXXXX4417", "4417"],
+    ["A/c No. 50100123456789", "6789"],
+    ["Card Number 5372 XXXX XXXX 0012", "0012"],
+    ["Statement of account for period Sep 2026", null],
+  ])("reads the last four digits from %s", (text, want) => {
+    expect(accountLast4(text)).toBe(want);
   });
 });
