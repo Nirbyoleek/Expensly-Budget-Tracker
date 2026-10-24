@@ -27,6 +27,16 @@ const fail = (error: unknown): { ok: false; error: string } => ({
 
 const done = () => revalidatePath("/", "layout");
 
+/** Every category id must be a built-in one or one of yours (row-level security hides everyone else's). */
+async function assertCategories(supabase: Awaited<ReturnType<typeof session>>["supabase"], ids: (string | null | undefined)[]) {
+  const want = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!want.length) return;
+  const { data, error } = await supabase.from("categories").select("id").in("id", want);
+  if (error) throw new Error(error.message);
+  const have = new Set((data ?? []).map((c) => c.id as string));
+  if (want.some((id) => !have.has(id))) throw new Error("That category doesn't exist any more. Pick another one.");
+}
+
 /* ───────────────────────── auth ───────────────────────── */
 
 const Email = z.string().trim().toLowerCase().email("Enter a valid email address.");
@@ -139,6 +149,7 @@ export async function addTransactions(input: {
   try {
     const { supabase } = await session();
     const rows = z.array(NewTx).min(1, "Nothing to add.").max(2000, "Import at most 2,000 rows at a time.").parse(input.rows);
+    await assertCategories(supabase, rows.map((r) => r.category_id));
 
     let accountId: string | null = null, accountName: string | undefined;
     if (input.account) {
@@ -210,6 +221,7 @@ export async function updateTransaction(
     const p = z
       .object({ merchant_name: z.string().trim().min(1, "Give it a name.").max(80), amount_paise: Paise, date: IsoDate, category_id: CategoryId, subcategory_id: SubId, note: z.string().max(500).nullable().optional() })
       .parse(patch);
+    await assertCategories(supabase, [p.category_id]);
     const { data: before } = await supabase.from("transactions").select("merchant_name,merchant_raw,category_id").eq("id", txId).maybeSingle();
     const { error } = await supabase.from("transactions").update({ ...p, reviewed: true, updated_at: new Date().toISOString() }).eq("id", txId);
     if (error) throw new Error(error.message);
@@ -271,6 +283,7 @@ export async function updateMerchant(
     const { supabase } = await session();
     const from = z.string().trim().min(1).max(80).parse(merchantName);
     const p = z.object({ rename_to: z.string().trim().min(1, "Give it a name.").max(80).optional(), category_id: CategoryId.optional(), subcategory_id: SubId }).parse(patch);
+    await assertCategories(supabase, [p.category_id]);
     const update: Record<string, unknown> = { reviewed: true, updated_at: new Date().toISOString() };
     if (p.rename_to) update.merchant_name = p.rename_to;
     if (p.category_id) { update.category_id = p.category_id; update.subcategory_id = p.subcategory_id ?? null; }
@@ -401,6 +414,7 @@ export async function setBudget(categoryId: string, limitPaise: number): Promise
   try {
     const { supabase } = await session();
     const limit = z.number().int().min(0).max(1e11).parse(limitPaise);
+    await assertCategories(supabase, [categoryId]);
     const { error } = await supabase
       .from("budgets")
       .upsert({ category_id: CategoryId.parse(categoryId), month: monthStart(todayISO()), limit_paise: limit }, { onConflict: "user_id,category_id,month" });
