@@ -12,10 +12,17 @@ import AiSort from "./AiSort";
 import { matches, parseQuery } from "@/lib/search";
 import { TAXONOMY_BY_ID, subName } from "@/lib/taxonomy";
 import { inr, inrCompact, inrSigned } from "@/lib/money";
-import { longDate, shortDate } from "@/lib/dates";
+import { longDate, monthLong, shortDate } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
 
 const SOURCE_LABEL: Record<string, string> = { import: "Statement", sms: "SMS", shortcut: "Shortcut" };
+/** Transactions per page: enough to scan a busy week, short enough to never feel endless. */
+const PAGE = 40;
+/** Up to five page numbers around the current one. */
+const pageWindow = (page: number, pages: number) => {
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  return Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
+};
 
 export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[]; initial: { filter?: string; day?: string; q?: string; sub?: string }; aiOn?: boolean }) {
   const { cats, toast, openAdd, celebrate } = useApp();
@@ -24,6 +31,11 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
   const [day, setDay] = useState(initial.day ?? "");
   const [q, setQ] = useState(initial.q ?? "");
   const [sub, setSub] = useState(initial.sub ?? "");
+  // Months with transactions, newest first. The view opens on the newest (or the day you came from).
+  const months = useMemo(() => [...new Set(tx.map((t) => t.date.slice(0, 7)))].sort().reverse(), [tx]);
+  const [month, setMonth] = useState<string>(initial.day?.slice(0, 7) ?? months[0] ?? "all");
+  const [pageState, setPageState] = useState({ key: "", page: 1 });
+  const listTop = useRef<HTMLDivElement>(null);
   const [merchant, setMerchant] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [approved, setApproved] = useState<Set<string>>(new Set());
@@ -35,8 +47,12 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
   const rows = useMemo(() => tx.filter((t) => !hidden.has(t.id)).map((t) => (approved.has(t.id) ? { ...t, reviewed: true } : t)), [tx, hidden, approved]);
   const toReview = rows.filter((t) => !t.reviewed).length;
 
+  // Searching and reviewing look across every month; browsing goes a month at a time.
+  const searching = !!q.trim();
+  const scope = searching || filter === "review" ? "all" : month;
+
   const list = useMemo(() => {
-    let l = rows;
+    let l = scope === "all" ? rows : rows.filter((t) => t.date.startsWith(scope));
     if (filter === "review") l = l.filter((t) => !t.reviewed);
     else if (filter === "income") l = l.filter((t) => t.amount_paise > 0 && t.category_id === "income");
     else if (filter === "in") l = l.filter((t) => t.amount_paise > 0);
@@ -49,17 +65,35 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
       l = l.filter((t) => matches(t, query));
     }
     return l;
-  }, [rows, filter, sub, day, q]);
+  }, [rows, filter, sub, day, q, scope]);
+
+  // Back to page 1 whenever what's being shown changes.
+  const pageKey = `${scope}|${filter}|${sub}|${day}|${q}`;
+  const page = pageState.key === pageKey ? pageState.page : 1;
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const shown = list.slice((page - 1) * PAGE, page * PAGE);
+  const goPage = (p: number) => {
+    setPageState({ key: pageKey, page: Math.min(pages, Math.max(1, p)) });
+    listTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const monthIdx = months.indexOf(month);
+  const stepMonth = (d: number) => { const m = months[monthIdx + d]; if (m) { setMonth(m); setDay(""); } };
 
   const totals = useMemo(
     () => list.reduce((a, t) => (t.category_id === "xfer" ? a : t.amount_paise < 0 ? { ...a, out: a.out - t.amount_paise } : { ...a, in: a.in + t.amount_paise }), { out: 0, in: 0 }),
     [list],
   );
 
+  // This page's rows by day; a month heading appears whenever the month changes (search, all months).
   const groups = useMemo(() => {
     const m = new Map<string, Transaction[]>();
-    for (const t of list) m.set(t.date, [...(m.get(t.date) ?? []), t]);
+    for (const t of shown) m.set(t.date, [...(m.get(t.date) ?? []), t]);
     return [...m.entries()];
+  }, [shown]);
+  const monthTotals = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const t of list) if (t.category_id !== "xfer" && t.amount_paise < 0) out.set(t.date.slice(0, 7), (out.get(t.date.slice(0, 7)) ?? 0) - t.amount_paise);
+    return out;
   }, [list]);
 
   const approve = (ids: string[]) => {
@@ -115,7 +149,7 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
       <aside className="act-side">
         <input id="search" className="search" type="search" placeholder="Search · try “swiggy >300”" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search transactions" />
         <div className="act-summary only-desktop">
-          <div><span className="eyebrow">Showing</span><b className="num">{list.length}</b></div>
+          <div><span className="eyebrow">{scope === "all" ? "Showing" : monthLong(`${scope}-01`).split(" ")[0]}</span><b className="num">{list.length}</b></div>
           <div><span className="eyebrow">Out</span><b className="num">{inrCompact(totals.out)}</b></div>
           <div><span className="eyebrow">In</span><b className="num good">{inrCompact(totals.in)}</b></div>
         </div>
@@ -153,12 +187,42 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
       </aside>
 
       <div className="act-main">
+      <div ref={listTop} className="act-monthbar">
+        {scope === "all" ? (
+          <div className="act-month-title">
+            <b>{searching ? "Search results" : filter === "review" ? "To review" : "All months"}</b>
+            <small>{searching || filter === "review" ? "across every month" : `${months.length} months`}</small>
+            {!searching && filter !== "review" && months[0] && <button className="link" onClick={() => setMonth(months[0])}>By month</button>}
+          </div>
+        ) : (
+          <>
+            <button className="icon-btn" onClick={() => stepMonth(1)} disabled={monthIdx >= months.length - 1} aria-label="Previous month">‹</button>
+            <div className="act-month-title">
+              <b className="cal-title-text">{monthLong(`${month}-01`)} ▾</b>
+              <small>{list.length} transaction{list.length === 1 ? "" : "s"} · {inr(totals.out)} out · <span className="good">{inr(totals.in)} in</span></small>
+              <select aria-label="Choose month" value={month} onChange={(e) => { setMonth(e.target.value); setDay(""); }}>
+                {months.map((m) => <option key={m} value={m}>{monthLong(`${m}-01`)}</option>)}
+                <option value="all">All months</option>
+              </select>
+            </div>
+            <button className="icon-btn" onClick={() => stepMonth(-1)} disabled={monthIdx <= 0} aria-label="Next month">›</button>
+          </>
+        )}
+      </div>
       <section className="card" style={{ padding: "4px 10px 10px" }}>
         {groups.length ? (
           groups.map(([date, items], gi) => {
             const net = items.reduce((a, t) => a + (t.category_id === "xfer" ? 0 : t.amount_paise), 0);
+            const prev = groups[gi - 1]?.[0];
+            const newMonth = scope === "all" && (!prev || prev.slice(0, 7) !== date.slice(0, 7));
             return (
               <div key={date} className="m-rise" style={{ animationDelay: `${Math.min(gi, 8) * 45}ms` }}>
+                {newMonth && (
+                  <div className="monthlabel">
+                    <span>{monthLong(`${date.slice(0, 7)}-01`)}</span>
+                    <span className="num">{inr(monthTotals.get(date.slice(0, 7)) ?? 0)} out</span>
+                  </div>
+                )}
                 <div className="daylabel"><span>{longDate(date)}</span><span className="num">{net ? inrSigned(net) : "₹0"}</span></div>
                 {items.map((t) => (
                   <SwipeRow key={t.id} onApprove={() => !t.reviewed && approve([t.id])} onDelete={() => remove(t)} onOpen={() => setEditing({ id: t.id })}>
@@ -189,7 +253,19 @@ export default function ActivityView({ tx, initial, aiOn }: { tx: Transaction[];
             );
           })
         ) : (
-          <div className="empty">{tx.length ? "Nothing matches. Clear the search or pick another filter." : "No transactions yet. Tap + to add your first."}</div>
+          <div className="empty">{tx.length ? (scope === "all" ? "Nothing matches. Clear the search or pick another filter." : `Nothing here for ${monthLong(`${scope}-01`)}. Try another month or filter.`) : "No transactions yet. Tap + to add your first."}</div>
+        )}
+        {pages > 1 && (
+          <nav className="pager" aria-label="Pages">
+            <button className="btn ghost sm" disabled={page <= 1} onClick={() => goPage(page - 1)}>‹ Newer</button>
+            <span className="hint">
+              {(page - 1) * PAGE + 1}–{Math.min(page * PAGE, list.length)} of {list.length}
+              <span className="pager-dots">{pageWindow(page, pages).map((p) => (
+                <button key={p} className={p === page ? "on" : ""} aria-current={p === page ? "page" : undefined} onClick={() => goPage(p)} aria-label={`Page ${p}`}>{p}</button>
+              ))}</span>
+            </span>
+            <button className="btn ghost sm" disabled={page >= pages} onClick={() => goPage(page + 1)}>Older ›</button>
+          </nav>
         )}
       </section>
       </div>

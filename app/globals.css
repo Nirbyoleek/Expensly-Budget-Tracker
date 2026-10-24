@@ -1041,3 +1041,23 @@ a.btn { display: inline-flex; justify-content: center; text-align: center; }
 .prose { gap: 10px; line-height: 1.55; font-size: 15px; }
 .prose h2 { font-size: 18px; margin: 14px 0 2px; }
 .prose ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* activity: month bar, month headings, pages */
+.act-monthbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; scroll-margin-top: 12px; }
+.act-monthbar .icon-btn { font-size: 22px; line-height: 1; width: 40px; height: 40px; flex: none; }
+.act-monthbar .icon-btn:disabled { opacity: 0.3; cursor: default; }
+.act-month-title { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; }
+.act-month-title b { font: 800 17px var(--display); letter-spacing: -0.01em; }
+.act-month-title small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.act-month-title small .good { color: var(--good); }
+.act-month-title select { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; font-size: 16px; }
+.act-month-title .link { font-size: 12px; }
+.monthlabel { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 6px 4px; margin-top: 6px; border-top: 1px solid var(--line); font: 800 14px var(--display); }
+.monthlabel:first-child { border-top: 0; margin-top: 0; }
+.monthlabel .num { font: 600 12px var(--mono); color: var(--muted); }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 4px 4px; margin-top: 8px; border-top: 1px solid var(--line); }
+.pager > .hint { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.pager-dots { display: flex; gap: 4px; }
+.pager-dots button { min-width: 30px; height: 30px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--fg); font: 700 12.5px var(--body); cursor: pointer; }
+.pager-dots button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pager .btn.sm:disabled { opacity: 0.4; }
