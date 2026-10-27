@@ -92,7 +92,7 @@ export default function BudgetsView(props: {
               <span className={`chip ${tone(r.status)}`}>{r.status}</span>
             </div>
             <div className="bar">
-              <i className="m-fill" style={{ width: `${Math.min(r.p, 1) * 100}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${r.color} 70%, transparent), ${r.color})`, animationDelay: `${150 + idx * 70}ms` }} />
+              <i className="m-fill" style={{ width: `${Math.min(r.p, 1) * 100}%`, background: r.spent > r.budget ? "var(--bad)" : `linear-gradient(90deg, color-mix(in srgb, ${r.color} 70%, transparent), ${r.color})`, animationDelay: `${150 + idx * 70}ms` }} />
               <span className="pm" style={{ left: `${props.pace * 100}%` }} />
             </div>
             <div className="row hint" style={{ width: "100%" }}>

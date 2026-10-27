@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
 import MerchantSheet from "@/components/MerchantSheet";
@@ -15,6 +15,49 @@ import { TAXONOMY_BY_ID, subName } from "@/lib/taxonomy";
 import type { Transaction } from "@/lib/types";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** Phone shortcuts down the long Insights column, in the order the sections appear there. */
+const JUMPS = [
+  { id: "health", label: "Health" },
+  { id: "income", label: "Income" },
+  { id: "categories", label: "Where it went" },
+  { id: "recurring", label: "Bills" },
+  { id: "merchants", label: "Merchants" },
+  { id: "rhythm", label: "Rhythm" },
+];
+
+function JumpBar() {
+  const [on, setOn] = useState<string | null>(null);
+  const bar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // keep the highlighted shortcut on screen
+    const nav = bar.current, chip = nav?.querySelector<HTMLElement>("[aria-current]");
+    if (nav && chip) nav.scrollTo({ left: chip.offsetLeft - (nav.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
+  }, [on]);
+  useEffect(() => {
+    // the section nearest the top of the screen is the one you're reading
+    const els = JUMPS.map((j) => document.getElementById(j.id)).filter((e): e is HTMLElement => !!e);
+    const io = new IntersectionObserver((entries) => {
+      const seen = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (seen) setOn(seen.target.id);
+    }, { rootMargin: "-80px 0px -60% 0px" });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+  return (
+    <nav ref={bar} className="filters jump-bar only-mobile" aria-label="Jump to a section">
+      {JUMPS.map((j) => (
+        <a key={j.id} className="fbtn" href={`#${j.id}`} aria-current={on === j.id ? "location" : undefined} onClick={(e) => {
+          const el = document.getElementById(j.id);
+          if (!el) return;
+          e.preventDefault();
+          el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+          history.replaceState(null, "", `#${j.id}`);
+        }}>{j.label}</a>
+      ))}
+    </nav>
+  );
+}
 const ALERT_GLYPH: Record<Alert["kind"], [string, string]> = {
   unusual: ["▲", "var(--warn)"], duplicate: ["⧉", "var(--bad)"], new: ["✦", "var(--accent)"], price: ["↑", "var(--bad)"], fees: ["!", "var(--bad)"], big: ["●", "var(--accent)"],
 };
@@ -65,6 +108,8 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
         <span><b>{monthLong(addMonths(monthStart(today), -1)).split(" ")[0]} in review</b><small>Last month wrapped up: what you spent, what changed, your top places.</small></span>
         <span aria-hidden="true">›</span>
       </Link>
+
+      <JumpBar />
 
       <div className="ins-grid">
         <div className="ins-col">
@@ -162,7 +207,7 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
         </section>
 
         {/* rhythm */}
-        <section className="card ins-rhythm o8">
+        <section className="card ins-rhythm o8" id="rhythm">
           <div className="section-h"><h2>Your spending rhythm</h2><span className="hint">everyday spends, 90 days</span></div>
           <div className="week">
             {a.weekday.avg.map((v, i) => (
@@ -268,7 +313,7 @@ export default function InsightsView({ a, plan, tx, budgetTotal, today, sample }
         </section>
 
         {/* merchants */}
-        <section className="card ins-merch o7">
+        <section className="card ins-merch o7" id="merchants">
           <div className="section-h"><h2>Top merchants</h2><span className="hint">last 6 months</span></div>
           {a.merchants.slice(0, 10).map((m, i) => {
             const c = cat(m.category_id);
