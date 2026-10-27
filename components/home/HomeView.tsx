@@ -50,7 +50,6 @@ export default function HomeView(props: {
 
       <div className="dash home-dash">
         <div className="col">
-          {props.setup && <SetupChecklist {...props.setup} />}
           <SafeHero
             safePerDay={v.safePerDay}
             daysLeft={v.daysLeft}
@@ -61,6 +60,7 @@ export default function HomeView(props: {
             pace={v.pace}
             paceDiff={v.paceDiff}
           />
+          {props.setup && <SetupChecklist {...props.setup} />}
 
           <DailySpending months={props.daily} current={v.month} today={v.day} />
         </div>
