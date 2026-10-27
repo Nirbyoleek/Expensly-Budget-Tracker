@@ -24,7 +24,7 @@ export default function HealthCard({ health, prev, month }: { health: Analysis["
   const prevName = new Date(`${month}T00:00:00Z`).toLocaleString("en-IN", { month: "long", timeZone: "UTC" });
 
   return (
-    <section className="card ins-health o1" aria-labelledby="health-h">
+    <section className="card ins-health o1" id="health" aria-labelledby="health-h">
       <div className="section-h"><h2 id="health-h">Money health</h2><span className="hint">Updated as you spend</span></div>
 
       <div className="health-head">

@@ -15,33 +15,44 @@ Bring in a statement, and Expensly sorts every rupee, tells you what you can spe
 
 ## Contents
 
+**Part 1: Product**
 - [Why Expensly](#why-expensly)
 - [What you get](#what-you-get)
-- [Getting started in 3 minutes](#getting-started-in-3-minutes)
-- [A tour of the app](#a-tour-of-the-app)
+- [Getting started](#getting-started)
+- [A quick tour](#a-quick-tour)
 - [Bringing in your spending](#bringing-in-your-spending)
-- [How Expensly sorts your money](#how-expensly-sorts-your-money)
-- [Expensly AI](#expensly-ai)
-- [Reminders](#reminders)
-- [Privacy and security](#privacy-and-security)
-- [FAQ](#faq)
-- [What's next](#whats-next)
-- [For developers](#for-developers)
+- [Privacy](#privacy)
+
+**Part 2: Under the hood**
+- [Tech stack](#tech-stack)
+- [System architecture](#system-architecture)
+- [How a page loads](#how-a-page-loads)
+- [Data model](#data-model)
+- [Ingestion pipeline](#ingestion-pipeline)
+- [The categoriser](#the-categoriser)
+- [The money maths](#the-money-maths)
+- [AI architecture](#ai-architecture)
+- [Reminders and Web Push](#reminders-and-web-push)
+- [PWA and offline](#pwa-and-offline)
+- [Security model](#security-model)
+- [Testing, CI and deployment](#testing-ci-and-deployment)
+- [Project structure](#project-structure)
+- [Running it locally](#running-it-locally)
 
 ---
+
+# Part 1: Product
 
 ## Why Expensly
 
-Most budget apps were built for a different country. They want you to link your bank, they don't recognise "UPI/DR/527412/ZOMATO/YESB", and they count your credit card bill as spending twice. Then they show you a pie chart and leave you to work out what to do with it.
+Most budget apps were built for a different country. They want you to link your bank, they don't recognise `UPI/DR/527412/ZOMATO/YESB`, and they count your credit card bill as spending twice.
 
-Expensly starts from one question you can act on every day: **how much can I safely spend today?** Everything else (budgets, insights, reminders, the AI) exists to make that number accurate and to keep you on the right side of it.
+Expensly starts from one question you can act on every day: **how much can I safely spend today?** Budgets, insights, reminders and the AI all exist to make that number accurate.
 
-- **Made for Indian money.** It recognises 230+ Indian brands and payment patterns, from Zepto, Blinkit and Rapido to IRCTC, Passport Seva, LIC and SIPs. It understands UPI narrations, CRED bill payments, GST on card charges and the dates and amounts on Indian statements.
-- **No bank login, ever.** You import the statement you already get from your bank. Expensly never asks for net-banking passwords, card numbers or UPI PINs.
-- **Spending you can trust.** Refunds come off what you spent. Card bill payments and transfers between your own accounts aren't counted twice. Money a friend pays you back reduces what you "sent to people" instead of looking like income.
-- **Answers, not just charts.** Ask "where can I cut back?" and get an answer based on your own transactions, with the numbers to back it up.
-
----
+- **Made for Indian money.** 230+ Indian brands and payment patterns, from Zepto and Rapido to IRCTC, LIC and SIPs. It reads UPI narrations, CRED bill payments, GST on card charges and Indian statement formats.
+- **No bank login, ever.** You import the statement you already get. Expensly never asks for net-banking passwords, card numbers or UPI PINs.
+- **Spending you can trust.** Refunds come off what you spent. Card bill payments and transfers between your own accounts aren't counted twice. A friend paying you back reduces what you "sent to people" instead of looking like income.
+- **Answers, not just charts.** Ask "where can I cut back?" and get an answer from your own transactions.
 
 ## What you get
 
@@ -50,241 +61,420 @@ Expensly starts from one question you can act on every day: **how much can I saf
 | 🎯 **Safe to spend today** | A daily allowance that accounts for your budget, what you've spent and the bills still to come |
 | 📥 **Import anything** | Bank and card statements (PDF, including password-protected, or CSV), pasted bank SMS, or a quick typed list |
 | 🧠 **Automatic sorting** | 21 categories and 80+ subcategories, filled in for you, learning from every correction |
-| 💸 **Money in & out** | Income, refunds, paybacks and transfers shown separately, so "spent" means what actually left your pocket |
-| 📊 **Budgets** | Per-category limits with a pace marker, your own categories with their own budgets, or one tap to have the AI suggest them from your last three months |
-| 💡 **Insights** | A money health score, needs vs wants vs savings, trends, unusual charges, duplicate payments and avoidable fees |
-| 📅 **Daily calendar** | Every day of the month coloured by how much you spent, with the amount on each day and past months one tap away |
+| 📊 **Budgets** | Per-category limits with a pace marker, your own categories, or one tap to have AI suggest them |
+| 💡 **Insights** | A money health score, needs vs wants vs savings, recurring bills, unusual charges and avoidable fees |
+| 📅 **Daily calendar** | Every day of the month coloured by how much you spent |
 | ✦ **Ask AI** | Chat with your own money: "Why did I spend more than last month?" |
 | 🔔 **Reminders** | Budget warnings, bills due tomorrow and a Monday summary, as phone notifications |
-| 🏦 **Goals & net worth** | Net worth, accounts and savings goals, next to your budgets under Plan |
+| 🏦 **Goals & net worth** | Accounts, net worth over time and savings goals |
 | 🔒 **Your data, your call** | Export everything any time; delete your account in one step |
 
----
+## Getting started
 
-## Getting started in 3 minutes
+1. **Create an account** at **[expensly-tracker.vercel.app](https://expensly-tracker.vercel.app)** with an email and password. There's no confirmation email to wait for.
+2. **Install it** (recommended). On iPhone, open it in Safari → **Share** → **Add to Home Screen**. On Android, open it in Chrome → **Install app**. On desktop it has a full layout with a sidebar and a command palette (**⌘K / Ctrl K**).
+3. **Follow the setup checklist** on Home: import last month's statement, add your monthly income, set budgets (or tap **Plan with AI**), and turn on reminders.
 
-### 1. Create your account
-Open **[expensly-tracker.vercel.app](https://expensly-tracker.vercel.app)** and choose **Create account**. Enter an email and a password: you're in straight away, with no confirmation email to wait for.
+Just looking? Choose **Explore with sample data** on the welcome screen.
 
-### 2. Install it on your phone (recommended)
-Expensly is a web app that installs like a regular app, with its own icon and full screen.
+## A quick tour
 
-- **iPhone:** open the site in **Safari** → tap **Share** → **Add to Home Screen**. Open Expensly from the new icon from now on. (This is also what lets it send you notifications.)
-- **Android:** open it in **Chrome** → menu → **Install app** (or **Add to Home screen**).
-- **Desktop:** use it in any browser. It has a full desktop layout with a sidebar and a command palette (**⌘K / Ctrl K**).
+The same four places exist on phone and desktop: **Home**, **Activity**, **Plan** and **Insights**.
 
-### 3. Follow the setup checklist
-The **Finish setting up** card on your Overview walks you through four steps:
-
-1. **Bring in your spending.** Import last month's bank or card statement.
-2. **Add your monthly income.** This unlocks your daily allowance and savings forecast.
-3. **Set your budgets.** Tap **Plan with AI** and accept or adjust its suggestions.
-4. **Turn on reminders.** This gets you budget warnings and bill alerts.
-
-Just want to look around first? Choose **Explore with sample data** on the welcome screen. You can remove the sample data any time in Settings.
-
----
-
-## A tour of the app
-
-### Overview
-Your money at a glance, built around one big number.
-
-- **The gauge:** *Safe to spend today*, a daily allowance for the rest of the month. Tap it to switch to *Left this month* and *Month-end forecast*. If you've gone over, it tells you by how much, and how many days remain, instead of showing ₹0.
-- **Today's brief:** a short AI-written summary each morning covering how the month is pacing, the biggest change and anything coming up.
-- **Insights:** the most useful findings right now, such as a category up 40% this week, subscriptions that cost ₹X a year, or no-spend days.
-- **Money in & out:** what came in (income, refunds, paybacks, transfers) and what you *actually* spent after refunds.
-- **Where it went:** a breakdown by category.
-- **Daily spending:** a calendar coloured by how much you spent each day, with the amount on every day. Use ‹ › or tap the month to go back through earlier months, and tap a day to see its total, its biggest spend and a link to every transaction. There's a 3D view too, if you like that sort of thing.
-- **Cash flow:** six months of money in vs money out.
-- **Coming up:** recurring bills due later this month.
-
-### Activity
-Every transaction, grouped by day.
-
-- **Search like you think:** `swiggy >300`, `fees`, `october`, `is:refund`.
-- **Filter** by Money in, Money out, To review, Income or any category, then narrow down by subcategory.
-- **Swipe right** to approve (green), **swipe left** to delete (red, with undo). **Tap** to edit.
-- **Fix one, fix them all.** Change a transaction's category and Expensly offers to move every other transaction from the same payee, and remember it for the future.
-- **Every merchant has a page** showing total spent, typical amount, how often you go, a six-month chart, and one-tap rename or re-file for all of them.
-
-### Plan
-Home, Activity, Plan and Insights are the same four places on your phone and your computer. Plan holds your **Budgets** and your **Goals & net worth**, with a switch at the top. Ask AI is the ✦ button on your phone and in the sidebar on a computer, and Settings is the gear in the corner.
-
-#### Budgets
-- A bar for each category with a **pace marker**, so you can see whether you're ahead of or behind where you should be today.
-- Tap any budget to change it. The change carries forward to later months.
-- **Make your own categories** (Pet care, Gym, Kids…) with **＋ New category** on Budgets, or straight from a transaction's category chips. Pick a colour, say whether it's a need, a want or avoidable, and optionally give it a monthly budget. Up to 30. Deleting one moves its transactions to a category you choose, so nothing is lost.
-- Set a budget with the slider or type the exact amount.
-- **Plan with AI** looks at your last three months and your income, then suggests a budget for each category with a one-line reason. Nothing changes until you apply it.
-
-### Insights
-- **Money health score (0–100)**, made up of your savings rate, budget pace, avoidable fees, wants vs income, investing and how up to date your transactions are. Each part tells you what would raise it.
-- **Your income plan:** monthly income, whether salary has arrived, what you're on course to keep, and a daily allowance that still meets your savings goal.
-- **Needs, wants and savings** against the 50/30/20 guide.
-- **Unusual activity:** a charge much bigger than usual at a regular merchant, possible double charges, price rises on subscriptions, new merchants and fees.
-- **Subscriptions & bills:** every recurring payment Expensly has detected (rent, EMIs, SIPs, subscriptions), what each costs a year, and a warning when a price goes up.
-- **Trends:** categories vs their 3-month average, top merchants, weekday vs weekend spending, and which part of the month you spend most in.
-- **Month-end forecast:** what you've spent, plus your typical spending for each remaining day of the week, plus bills still due.
-
-#### Goals & net worth
-Net worth over time, your accounts and savings goals (with a celebration when you hit one).
-
-### Settings
-Reminders, password, a link to your income (set on Insights), an iPhone Shortcut for forwarding bank SMS, **Re-categorise everything**, data export and account deletion.
-
----
+- **Home** leads with the *Safe to spend today* gauge (tap to switch to *Left this month* or *Month-end forecast*), then an AI morning brief, top insights, money in vs out, a daily spending calendar and six months of cash flow.
+- **Activity** lists every transaction by day. Search the way you think (`swiggy >300`, `is:refund`, `october`). Swipe right to approve, swipe left to delete, tap to edit. Change one payee's category and Expensly offers to move the rest and remember it.
+- **Plan** holds **Budgets** (a bar per category with a pace marker, your own categories, AI-suggested limits) and **Goals & net worth**.
+- **Insights** has the 0–100 money health score with what would raise it, your income plan, 50/30/20 split, detected subscriptions and bills, unusual charges, top merchants and spending rhythm.
+- **Ask AI** (✦) answers questions from your real data, with charts and follow-up suggestions.
 
 ## Bringing in your spending
 
-You can mix any of these. **Duplicates are caught automatically**, so importing an overlapping statement won't double-count anything.
+You can mix all three. **Duplicates are caught automatically**, so overlapping statements never double-count.
 
-### Bank and card statements (recommended)
-Tap **＋ → Statement** and choose the file. **Where do I get a statement?** in the same screen shows where to find it for HDFC, SBI, ICICI, Axis, Kotak and others.
+- **Statements (recommended).** Tap **＋ → Statement** and pick a PDF or CSV. Password-protected PDFs work: the password is used only on your device. Expensly finds the statement's columns, checks every row against the running balance ("✓ Balances add up on all 165 rows"), and shows a preview before anything is saved.
+- **Bank SMS.** Paste one or more UPI or card alerts. On iPhone a Shortcut can forward them automatically.
+- **Quick add.** Type it the way you'd text a friend: `chai 20, auto 60, swiggy 340, rent 12k, +18000 freelance`.
 
-- **PDF or CSV/Excel.** CSV is the most reliable when your bank offers it, but PDFs work well too.
-- **Password-protected PDFs** are fine. You type the password, and it's used only on your device to open the file.
-- **Column-aware reading.** Expensly finds the statement's Date, Narration, Withdrawal, Deposit and Balance columns, even when the description wraps across several lines.
-- **Balance check.** It confirms every row against the running balance (*"✓ Balances add up on all 165 rows"*). If a debit and credit were read the wrong way round, it corrects them. If rows look missing, it warns you before anything is saved.
-- **Preview first.** You see every row with its category before adding anything. Change any of them, and rows from the same payee follow.
-- **Credit card bill payments** (including through CRED) are recognised as transfers and left out, so your spending isn't counted twice.
+## Privacy
 
-> The statement file is read **in your browser**. It is never uploaded; only the transactions you choose to add are saved.
+- **Statements never leave your device.** Files are read in the browser; only the transactions you choose to add are saved.
+- **Your rows are yours.** Data lives in Supabase's Mumbai region behind row-level security, so only your login can read it.
+- **AI sees only what it needs.** Merchant sorting sends only the business name: no amounts, dates or identity.
+- **Notifications carry nothing personal.** Apple and Google only see an empty "wake up" signal.
+- **No ads, no selling data.** Export a CSV or a full JSON copy any time, or delete your account and every row instantly.
 
-### Bank SMS
-Tap **＋ → Bank SMS** and paste one or more UPI or card alerts. Expensly pulls out the amount, merchant, date and direction. On iPhone you can automate this with a Shortcut; see **Settings → iOS Shortcut**.
+---
 
-### Quick add
-Tap **＋** and type the way you'd text a friend:
+# Part 2: Under the hood
+
+## Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | **Next.js 15** (App Router), **React 19**, TypeScript | Server Components for data-heavy pages, Server Actions for writes, one deployable |
+| Database & auth | **Supabase** (Postgres, Auth, row-level security) | Per-user isolation enforced in the database, not the app |
+| Hosting | **Vercel** (Node.js functions, Cron) | Preview deploys per PR, a daily cron for reminders |
+| Styling | Hand-written CSS with design tokens (`app/globals.css`) | One dark-first design system, light mode follows the phone |
+| PDF parsing | **pdf.js** (`pdfjs-dist`), in the browser | Statements and their passwords never reach the server |
+| Validation | **zod** | Every Server Action and API body is parsed before use |
+| AI | Plain `fetch` clients for Anthropic and OpenAI-compatible APIs | No SDKs; Gemini, Groq, OpenAI and OpenRouter all work through one abstraction |
+| Push | Web Push with VAPID, implemented with `node:crypto` | No push library, no payload encryption needed |
+| 3D | **three.js** (lazy-loaded) | The optional 3D calendar and login orb |
+| Tests | **Vitest** (unit), **Playwright** (end-to-end) | 315 unit tests, plus a signed-in journey before every release |
+
+## System architecture
+
+```mermaid
+flowchart TB
+  subgraph Device["📱 User's device"]
+    direction LR
+    PDF["pdf.js + parsers<br/>lib/ingest"] --> UI["Next.js client<br/>React 19"]
+    Q["Offline queue"]
+    SW["Service worker<br/>public/sw.js"]
+  end
+
+  SC["iOS Shortcut"]
+
+  subgraph Vercel["▲ Vercel"]
+    direction LR
+    MW["Middleware<br/>session + route guard"] --> RSC["Server Components<br/>lib/data.ts"]
+    SA["Server Actions"]
+    API["API routes<br/>ask · export · ingest/sms ·<br/>notifications/pending"]
+    CRON["Cron<br/>/api/cron/notify"]
+  end
+
+  subgraph Supabase["🟢 Supabase · Mumbai"]
+    direction LR
+    AUTH["Auth"]
+    PG[("Postgres + RLS")]
+  end
+
+  AI["AI providers<br/>Gemini · Groq · OpenAI ·<br/>Anthropic · OpenRouter"]
+  PUSH["APNs / FCM"]
+
+  UI -->|"page loads"| MW
+  UI -->|"writes"| SA
+  Q -->|"when online"| SA
+  UI -->|"Ask AI, export"| API
+  SW -->|"fetch with cookie"| API
+  SC -->|"Bearer token"| API
+  MW --> AUTH
+  RSC --> PG
+  SA --> PG
+  API --> PG
+  CRON --> PG
+  API --> AI
+  SA --> AI
+  CRON -->|"empty push"| PUSH
+  PUSH -.->|"wake up"| SW
+```
+
+Three rules shape the whole design:
+
+1. **Parse on the device, store on the server.** Statements are turned into rows in the browser; the server only ever sees the rows the user approves.
+2. **The database is the security boundary.** Every user-owned table has row-level security keyed on `auth.uid()`, so a bug in a query can't leak another user's rows.
+3. **Pure core, thin edges.** Parsing, categorising, money maths, analytics and reminders are pure TypeScript functions with no I/O, which is why most of them are unit-tested directly.
+
+## How a page loads
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant M as Middleware
+  participant P as Page (Server Component)
+  participant D as lib/data.ts
+  participant S as Supabase
+
+  B->>M: GET /home
+  M->>S: refresh session cookie
+  alt not signed in
+    M-->>B: redirect /login
+  end
+  M->>P: render
+  P->>D: getRecentTransactions(), getBudgetRows(), getCategories()…
+  Note over D: each loader is wrapped in React cache(),<br/>so one request never queries twice
+  D->>S: select … (RLS filters to this user)
+  S-->>D: rows
+  P->>P: monthView(), analytics (pure functions)
+  P-->>B: streamed HTML + client islands
+  B->>B: hydrate interactive parts (sheets, charts, swipe)
+```
+
+Writes go through **Server Actions** (`app/actions.ts`, `ai-actions.ts`, `notify-actions.ts`). Each one validates its input with zod, runs as the signed-in user so RLS applies, and calls `revalidatePath` so the next render shows fresh data.
+
+## Data model
+
+Money is stored as **integer paise** (`amount_paise`, negative = money out) and dates as `YYYY-MM-DD` in **Asia/Kolkata**, so there are no floating-point or timezone surprises.
+
+```mermaid
+erDiagram
+  USERS ||--|| PROFILES : has
+  USERS ||--o{ TRANSACTIONS : owns
+  USERS ||--o{ CATEGORIES : "custom (system rows have no owner)"
+  USERS ||--o{ BUDGETS : sets
+  USERS ||--o{ MERCHANT_RULES : teaches
+  USERS ||--o{ IMPORTS : runs
+  USERS ||--o{ ACCOUNTS : holds
+  USERS ||--o{ GOALS : saves
+  USERS ||--o{ INCOME_PLANS : plans
+  USERS ||--o{ PUSH_SUBSCRIPTIONS : "devices"
+  USERS ||--o{ NOTIFICATIONS : receives
+  IMPORTS ||--o{ TRANSACTIONS : "undo as a batch"
+  ACCOUNTS ||--o{ TRANSACTIONS : "statement for"
+  CATEGORIES ||--o{ TRANSACTIONS : files
+  CATEGORIES ||--o{ BUDGETS : "limit per month"
+  GOALS ||--o{ GOAL_CONTRIBUTIONS : "add money"
+  ACCOUNTS ||--o{ NET_WORTH_SNAPSHOTS : tracks
+
+  TRANSACTIONS {
+    uuid id
+    uuid user_id
+    date date
+    bigint amount_paise
+    text merchant_name
+    text merchant_raw
+    text category_id
+    text subcategory_id
+    text source "manual | sms | shortcut | import"
+    bool reviewed
+    text dedupe_hash "unique per user"
+  }
+  BUDGETS {
+    text category_id
+    date month
+    bigint limit_paise
+  }
+  MERCHANT_RULES {
+    text pattern
+    text category_id
+    text rename_to
+  }
+```
+
+Supporting tables: `ai_usage`, `ai_limits` and `ai_connections` (quotas and encrypted own-keys), `ai_briefs` (one cached morning brief per day), `merchant_ai_cache` (shared business-name → category answers), `app_errors` and `events` (private observability). Notable database functions:
+
+| Function | Job |
+|---|---|
+| `handle_new_user` | Trigger that creates a profile on sign-up |
+| `ai_take_quota`, `ai_record_tokens` | Atomic per-minute, daily and monthly AI limits (`SECURITY DEFINER`) |
+| `tx_months` | Months that have transactions, for Activity's month picker |
+| `uncat_needs_review` | Keeps uncategorised rows in *To review* until they get a category |
+| `limit_own_categories` | Caps custom categories at 30 per user |
+
+Migrations live in `supabase/migrations/` (`0001` → `0018`) and are applied in order.
+
+## Ingestion pipeline
+
+Everything in `lib/ingest/` is pure TypeScript that runs **in the browser**. The server receives finished rows.
+
+```mermaid
+flowchart TD
+  A["PDF statement"] -->|"pdf.js, optional password<br/>(never leaves the device)"| B["Positioned text per page"]
+  B --> C["Column-aware table reader<br/>table.ts: finds Date · Narration ·<br/>Withdrawal · Deposit · Balance"]
+  CSV["CSV / Excel export"] --> C2["CSV parser"]
+  SMS["Pasted bank SMS"] --> C3["SMS parser"]
+  QA["Quick add text<br/>'chai 20, rent 12k, +18000'"] --> C4["Quick-add parser"]
+
+  C --> R{"Running-balance<br/>reconciliation"}
+  R -->|"debit/credit swapped"| FIX["flip sign"]
+  R -->|"gap in balances"| WARN["warn: rows may be missing"]
+  R --> RAW
+  FIX --> RAW
+  C2 --> RAW
+  C3 --> RAW
+  C4 --> RAW
+
+  RAW["RawRow[]<br/>date · amount_paise · merchant_raw"] --> PREP["prepareRows()<br/>clean narration → classify →<br/>dedupe_hash"]
+  PREP --> AIQ{"confidence &lt; 0.7<br/>and unknown merchant?"}
+  AIQ -->|yes| AIS["aiSortImport()<br/>name only → shared cache → AI"]
+  AIQ -->|no| PREV
+  AIS --> PREV["Preview screen<br/>user edits, payee-wide changes"]
+  PREV --> ADD["addTransactions() Server Action<br/>zod · category check ·<br/>upsert on (user_id, dedupe_hash)"]
+  ADD --> DB[("transactions")]
+```
+
+- **Deduplication.** Each row gets a `dedupe_hash` from its date, amount and normalised merchant name (two identical spends in one batch get `#1`, `#2` so both survive). The insert is an upsert with `ignoreDuplicates` on `(user_id, dedupe_hash)`, so re-importing an overlapping statement adds only the new rows, and the result reports how many were skipped.
+- **Undo.** Every import creates an `imports` row, and its transactions point at it, so a whole import can be removed in one step.
+- **Accounts.** A statement can be linked to an account; its closing balance updates that account's balance.
+- **SMS forwarding.** `POST /api/ingest/sms` accepts a bank SMS from an iOS Shortcut with a per-user `Bearer kosh_…` token that can only add transactions. It is rate-limited to 60 messages a minute and rows land unreviewed.
+
+## The categoriser
+
+`classify()` in `lib/ingest/classify.ts` runs these layers in order and stops at the first match. Each layer returns a category, subcategory, a **confidence** and a human-readable **reason** that the app shows when you tap a transaction.
+
+```mermaid
+flowchart TD
+  IN["merchant_raw · UPI/DR/527412/ZOMATO/YESB"] --> CL["cleanRaw(): name · bank label · UPI ID · forex"]
+  CL --> L1["1 · Your rules"]
+  L1 --> L2["2 · Card bill or own-account move → transfer, not spend"]
+  L2 --> L3["3 · Statement structure: salary · interest · GST · ATM · EMI · SIP"]
+  L3 --> L4["Money in: refund · payback · redemption"]
+  L4 --> L5["4 · Memory: by UPI ID, then by name"]
+  L5 --> L6["5 · 230+ Indian brands"]
+  L6 --> L7["6 · The bank's own merchant label"]
+  L7 --> L8["7 · UPI payment to a person"]
+  L8 --> L9["8 · Keywords: medical · dhaba · salon"]
+  L9 --> L10["9 · Uncategorised → To review → AI"]
+  classDef stop fill:#e8f7ef,stroke:#087a54,color:#0f1422
+  class L10 stop
+```
+
+- **Below 0.7 confidence** (`REVIEW_THRESHOLD`) a row lands in *To review*.
+- **Memory** is built from the user's own past filings. Keying by UPI ID (`naturals.blr@ybl`) means a payee is recognised even when the bank shortens its name differently.
+- **Corrections teach.** Re-filing a transaction can create a `merchant_rules` row, which wins over every other layer from then on. **Re-categorise everything** re-runs the latest classifier over history without overriding the user's own choices.
+- **The AI fallback** sends only the business name, never amounts or dates, and skips anything that looks like a person's name. Answers are stored in the shared `merchant_ai_cache`, so a given shop is looked up once across all users.
+
+## The money maths
+
+`lib/finance.ts` turns a month of transactions into the numbers on Home. The headline is:
 
 ```
-chai 20, auto 60, swiggy 340, lunch 220, rent 12k, +18000 freelance
+safe per day = max(0, ⌊ (budget total − spent so far − upcoming bills) ÷ days left including today ⌋)
 ```
 
-Commas separate entries, `k` means thousand, and `+` means money in. Everyday items are recognised: *coke* and *chips* go to snacks, *atta* to groceries, *haircut* to salon, *mobile recharge* to bills. Anything unfamiliar is sorted by the AI once you pause typing.
+| Term | Where it comes from |
+|---|---|
+| **budget total** | Each category's limit for this month, carried forward from the last month it was set (`resolveBudgets`) |
+| **spent** | Money out minus refunds, excluding transfers, card bill payments and investments |
+| **upcoming bills** | Recurring payments (`detectRecurring`) not yet paid this month and due later in it |
+| **pace** | `day ÷ days in month`; the marker on every budget bar |
+| **projected** | Fixed costs + upcoming bills + (variable spend ÷ day) × days in month |
 
----
+`lib/analytics.ts` builds Insights from the same inputs (health score, 50/30/20 split, alerts, top merchants, weekday rhythm), and `lib/reminders.ts` reuses them to decide what to notify.
 
-## How Expensly sorts your money
+## AI architecture
 
-Every transaction gets a **category and subcategory** (Food & dining → Food delivery, Bills & utilities → Rent, and so on), along with a short reason you can see by tapping it.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Ask screen
+  participant R as /api/ask
+  participant G as gate.ts
+  participant DB as Postgres
+  participant P as provider.ts
+  participant L as LLM
+  participant T as tools.ts
 
-**21 categories:** Food & dining · Groceries · Transport · Shopping · Bills & utilities · Subscriptions · Health & fitness · Entertainment · Travel · Home & services · Personal care · Education · Family & gifts · Sent to people · Fees & interest · Taxes & government · Cash withdrawals · Donations · Investments · Income · Card payments & transfers
+  U->>R: POST messages (zod: ≤24 turns, ≤1,000-char question)
+  R->>DB: load user's tx, budgets, goals, income (RLS)
+  alt no AI configured
+    R-->>U: rule-based answer (lib/ask.ts), mode "basic"
+  end
+  R->>G: takeAi()
+  G->>DB: rpc ai_take_quota (per-minute · daily · monthly tokens)
+  DB-->>G: ok / limit reached
+  R->>P: runProvider(system prompt, messages, tools)
+  loop up to 6 rounds
+    P->>L: stream request
+    L-->>P: text deltas or tool calls
+    P->>T: run tool (read-only, in memory)
+    T-->>P: JSON result
+  end
+  P-->>R: stream events
+  R-->>U: NDJSON lines: meta · tool · text · done
+  R->>DB: ai_record_tokens
+```
 
-Each transaction goes through these steps, most specific first:
+- **Providers.** `lib/ai/claude.ts` (Anthropic Messages API) and `lib/ai/openai.ts` (any OpenAI-compatible API: Gemini, Groq, OpenAI, OpenRouter) are small `fetch`-based streaming clients with a tool loop. Only each provider's cheapest model tier is ever used (`CHEAP_MODELS`).
+- **Failover.** The first configured key is the main provider and the second is the backup. If the main one is rate-limited or down, the request is retried on the backup automatically.
+- **Seven read-only tools** compute answers from data already loaded for the request: `get_overview`, `query_transactions`, `spending_summary`, `get_recurring`, `get_budgets`, `get_alerts_and_patterns`, `get_accounts_and_goals`. The model never gets database access and can't change anything.
+- **Charts in answers.** The model can emit one fenced `chart` block with JSON data from tool results; the client renders it as a bar or line chart.
+- **Limits** are enforced in Postgres by `ai_take_quota`, so they can't be bypassed from the browser. Defaults: 10 questions a day, 5 a minute and 1.5M tokens a month on the app's key; people can connect their own key (stored AES-256-GCM encrypted) for higher caps.
+- **Other AI features** go through the same gate: the morning brief (cached per day in `ai_briefs`), Plan with AI for budgets, Sort with AI for unclear transactions, and merchant sorting during import.
 
-1. **Your rules.** Anything you've told Expensly to always do.
-2. **Card bills and transfers.** Recognised and kept out of spending.
-3. **Statement patterns.** Salary, interest, cashback, GST, forex markup, late fees, ATM withdrawals, EMIs and SIPs.
-4. **Refunds and paybacks.** Taken off the category they belong to, not counted as income.
-5. **Your history, by UPI ID.** Pay `naturals.blr@ybl` again and it goes where you filed it last time, even if the bank shortens the name differently.
-6. **230+ Indian brands** and the bank's own merchant labels.
-7. **People.** UPI payments to a person's name go to *Sent to people*.
-8. **Business words** in the name: *medical*, *dhaba*, *petrol pump*, *salon*.
-9. **AI, for whatever's left**, using only the merchant's name. Each answer is remembered in a shared list of business names, so a shop is only ever looked up once across all users.
+## Reminders and Web Push
 
-Anything Expensly isn't sure about lands in **To review**. Correct it once and every similar transaction, now and in future, follows.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant V as Vercel Cron (09:00 IST)
+  participant C as /api/cron/notify
+  participant DB as Postgres
+  participant PS as Push service (APNs/FCM)
+  participant SW as Service worker
+  participant N as /api/notifications/pending
 
----
+  V->>C: GET with Bearer CRON_SECRET
+  C->>DB: profiles, categories, 3 months of tx, budgets
+  C->>C: remindersFor() per user (pure)
+  C->>DB: insert notifications (stable key → sent once ever)
+  C->>PS: empty push, VAPID-signed JWT (ES256)
+  PS->>SW: wake up
+  SW->>N: fetch with the user's cookie
+  N-->>SW: waiting messages
+  SW->>SW: showNotification() (max 3)
+```
 
-## Expensly AI
+- **Stable keys** such as `budget80:food:2026-10-01` or `bill:<payee>:<date>` mean each reminder fires once, on the first day its condition is true.
+- **Empty pushes** need no payload encryption and carry nothing personal; the device fetches the text itself over an authenticated request.
+- The same job deletes end-to-end test accounts older than two hours and sends the owner a notification summarising the last day's errors from `app_errors`.
 
-**Ask AI** (the ✦ tab) is a chat about your money. It reads your actual transactions, budgets and goals before answering, and shows its working ("✓ Checked spending summary, budgets").
+## PWA and offline
 
-Try:
-- *How's my month going?*
-- *Where can I cut back?*
-- *Why did I spend more than last month?*
-- *Which subscriptions should I review?*
-- *How much did I spend on food delivery?*
-- *Will I hit my savings goal?*
-- *Compare my weekday and weekend spending*
+- **Installable** via `app/manifest.ts`, with icons and a standalone display mode.
+- **Service worker** (`public/sw.js`): build files are cached first (their names carry a content hash in production), main tabs are kept as their last-seen copy for offline viewing, and an `/offline` page covers the rest. Signing out clears the saved pages. In development the worker is registered as `/sw.js?dev` and never caches build files, because `next dev` reuses file names between builds.
+- **Offline quick-add** (`lib/offline-queue.ts`): hand-typed entries made without a connection wait in `localStorage` (up to 200) and are sent when the phone is back online. Imports always need the server.
 
-Answers come with charts where they help, and suggested follow-up questions. You can also ask by voice, copy or retry answers, and pick up past chats. The ✦ links on merchants, transactions and insights open a chat with the right question already filled in.
+## Security model
 
-AI also powers **Today's brief**, **Plan with AI** for budgets, **Sort with AI** for unclear transactions, and sorting unfamiliar merchants when you import.
+| Concern | Measure |
+|---|---|
+| Data isolation | RLS on every user table; `user_id` defaults to `auth.uid()`; RLS policies use `(select auth.uid())` so the check runs once per query |
+| Input | zod on every Server Action and API body; category IDs are checked to be built-in or the user's own |
+| Secrets | Service role, AI and VAPID private keys are server-only (`import "server-only"`), never `NEXT_PUBLIC_` |
+| Own AI keys | AES-256-GCM, key derived from a server secret |
+| Statements | Parsed in the browser; files and PDF passwords never sent |
+| SMS endpoint | Scoped per-user token that can only insert, rate-limited |
+| Cron | `Authorization: Bearer CRON_SECRET` required |
+| Trigger functions | Locked out of the public API (`0016_lock_trigger_functions.sql`) |
+| Headers | `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, restrictive `Permissions-Policy` |
+| Observability | `instrumentation.ts` logs server errors and client error boundaries report to `app_errors`; private usage events go to `events`, with test accounts excluded |
 
-**Fair use.** Each person gets 10 AI requests a day. Expensly uses fast, efficient models and switches to a backup provider automatically if the main one is busy, so it stays available.
+## Testing, CI and deployment
 
----
+```mermaid
+flowchart LR
+  PR["Pull request"] --> T1["Typecheck"] --> T2["Vitest<br/>315 tests"] --> T3["Production build"]
+  PR --> PV["Vercel preview deploy"]
+  T3 -->|"merge to main"| D1["vercel build --prod"]
+  D1 --> D2["Deploy without traffic"]
+  D2 --> D3["Playwright journey<br/>on that deployment"]
+  D3 -->|pass| D4["Promote to live domain"]
+  D4 --> D5["Smoke-test live site"]
+  D3 -->|fail| X["Stop: live site untouched,<br/>report kept 14 days"]
+  CRON2["Daily 09:30 IST"] --> D5
+```
 
-## Reminders
+- **Unit tests** (`npm test`) cover the parsers, categoriser, finance maths, analytics, AI failover and limits, reminders, push signing, the service worker and cron auth. See [TESTING.md](TESTING.md).
+- **End-to-end journey** (`e2e/journey.spec.ts`) signs up a throwaway `e2e-…@expensly.test` account, then quick-adds, reviews, imports a statement, creates a category with a budget, visits every main page, exports, and deletes the account. Test accounts never spend AI and are excluded from analytics.
+- **Releases are gated**: a broken build or failed journey never reaches the live domain.
 
-Turn them on in **Settings → Reminders**. Expensly then sends you:
+## Project structure
 
-- **Budget warnings** when a category reaches 80%, and again if it goes over, once each per month.
-- **Bills due tomorrow** for rent, EMIs and subscriptions it has spotted repeating.
-- **A Monday summary:** last week's spending compared with the week before.
+```
+app/
+  (app)/            signed-in pages: home, activity, budgets, wealth, insights, ask, review, settings, admin
+  api/              ask (streaming AI) · export · ingest/sms · notifications/pending · cron/notify
+  actions.ts        Server Actions: transactions, categories, budgets, accounts, goals, auth
+  ai-actions.ts     morning brief, AI budgets and sorting
+  login/ setup/ offline/ privacy/
+components/         UI by area (home, activity, budgets, insights, wealth, ask, settings, charts, three)
+lib/
+  ingest/           parsers, PDF reader, table reader, categoriser, 230+ merchants
+  ai/               provider clients, model catalog, gate, limits, tools, key encryption
+  finance.ts        month view, budgets, recurring detection, safe-to-spend
+  analytics.ts      health score, splits, alerts, trends
+  reminders.ts      what to notify, with stable keys
+  push.ts           Web Push (VAPID) without a library
+  data.ts           cached server-side loaders
+  supabase/         browser, server and middleware clients
+supabase/migrations/ schema, RLS, functions (0001 → 0018)
+public/sw.js        service worker
+e2e/  tests/        Playwright journey · Vitest fixtures
+```
 
-Every reminder also collects under the **🔔 bell** at the top of the app, so you see them even if notifications are off. Each kind can be switched off separately.
-
-> **On iPhone**, notifications need Expensly installed on your Home Screen (iOS 16.4 or later) and opened from that icon.
-
----
-
-## Privacy and security
-
-Expensly is designed to know as little about you as it needs to.
-
-- **No bank credentials.** It never asks for net-banking logins, card numbers, CVVs or UPI PINs.
-- **Statements stay on your device.** Files are read in your browser and never uploaded. PDF passwords never leave your phone.
-- **Your data is private to you.** It's stored in Supabase's **Mumbai (India)** region and protected by database rules, so only your login can read your rows.
-- **AI sees only what it needs.** Questions go to the AI provider with only the figures needed to answer them. When sorting merchants, only the business name is sent: no amounts, no dates, no identity, and nothing that looks like a person's name.
-- **Notifications carry nothing personal.** Apple and Google receive only an empty "wake up" signal. Your phone then fetches the message from Expensly using your login.
-- **No ads, no selling data.**
-- **You're in control.** Download a CSV of your transactions, or a complete JSON copy of everything, from **Settings → Your data**. **Delete my account** removes your login and every piece of your data immediately.
-
-The full plain-language notice is in the app at **/privacy**.
-
----
-
-## FAQ
-
-**Is it free?**
-Yes. AI features have a fair-use limit of 10 requests per person per day.
-
-**Do I need to connect my bank?**
-No. You import the statements your bank already gives you. Nothing connects to your bank.
-
-**Which banks work?**
-Any bank or card that gives you a PDF or CSV statement. Expensly reads tables by their column headings rather than by bank-specific templates. If a statement doesn't read well, the import screen tells you; the CSV/Excel export from net banking is the most reliable fallback.
-
-**My credit card statement is password-protected. What's the password?**
-Usually it's explained in the email the statement came with, often a mix of your name and date of birth. You type it into Expensly, and it's only used on your device.
-
-**Something went into the wrong category.**
-Tap it, pick the right one, and leave *"Also move the others…"* ticked. Every transaction from that payee moves, and future ones follow. To re-sort everything with the latest categoriser, use **Settings → Re-categorise everything**. It never overrides choices you made yourself.
-
-**A friend paid me back. Why isn't it income?**
-Because it isn't. It's taken off what you sent to people, so splits and paybacks don't make your income look bigger than it is. If it really was income, tap it and choose Income.
-
-**Why is my credit card bill payment missing from spending?**
-On purpose. The individual card purchases are your spending; paying the card bill is just moving money. Counting both would double your spending.
-
-**Can I use it on more than one device?**
-Yes. Sign in anywhere and your data is the same everywhere. Turn on notifications separately on each device you want them on.
-
-**I forgot my password.**
-If you're signed in on another device, change it in **Settings → Password**. Otherwise, contact the app owner to reset it.
-
----
-
-## What's next
-
-- **Automatic SMS capture on iPhone**, guided setup so UPI and card alerts appear in Expensly within seconds
-- **Forward-to-email import**, so your monthly e-statements import themselves
-- **Shared family budgets**
-- **Multiple bank accounts** with balances
-- **Expensly Pro**, with more AI and premium features
-
----
-
-## For developers
-
-Expensly is a **Next.js 15** (App Router, React 19, TypeScript) progressive web app on **Supabase** (Postgres with row-level security, auth) and **Vercel**.
-
-<details>
-<summary><b>Run it locally</b></summary>
+## Running it locally
 
 You need Node 20.9 or newer.
 
@@ -295,10 +485,11 @@ npm run setup-push           # creates the web-push keys and cron secret
 npm run dev
 ```
 
-**Supabase**
+<details>
+<summary><b>Supabase setup</b></summary>
 
 1. Create a project at [supabase.com](https://supabase.com) (the Mumbai region is closest for Indian users).
-2. In **SQL Editor**, run every file in `supabase/migrations/` in order (`0001` → `0010`).
+2. In **SQL Editor**, run every file in `supabase/migrations/` in order (`0001` → `0018`).
 3. In **Authentication → Sign In / Providers**, keep Email on and turn **Confirm email** off. Expensly uses email + password and sends no emails.
 4. In **Authentication → URL Configuration**, set the Site URL to your deployed address and add `<your address>/**` and `http://localhost:3000/**` as redirect URLs.
 5. Copy the Project URL, anon key and service role key into `.env.local`.
@@ -315,7 +506,8 @@ npm run dev
 | `GEMINI_API_KEY` | Main AI provider (the free tier works) |
 | `GROQ_API_KEY` | Optional backup AI, used automatically when the main one is out of quota or down |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY` | Other supported providers. The first key set is the main one; the second is the backup |
-| `AI_DAILY_LIMIT`, `AI_PER_MINUTE`, `AI_MONTHLY_TOKENS` | Per-user AI limits, enforced in the database (defaults: 30 / 5 / 1.5M) |
+| `AI_DAILY_LIMIT`, `AI_PER_MINUTE`, `AI_MONTHLY_TOKENS` | Per-user AI limits on the app's key, enforced in the database (defaults: 10 / 5 / 1.5M) |
+| `AI_KEY_SECRET` | Optional: encrypts people's own AI keys (falls back to a key derived from the service role key) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web push for reminders (`npm run setup-push`) |
 | `CRON_SECRET` | Protects the daily reminder job (`npm run setup-push`) |
 | `OWNER_EMAIL` | Receives the daily error report and sees Settings → App health |
@@ -326,49 +518,18 @@ Never put the service role key, AI keys or the VAPID private key in a variable s
 </details>
 
 <details>
-<summary><b>Deploy</b></summary>
-
-```bash
-npm run deploy
-```
-
-This logs in to Vercel if needed, copies the variables above from `.env.local` to production without printing them, and deploys. `vercel.json` runs the reminder job every day at 9:00 IST.
-
-</details>
-
-<details>
 <summary><b>Scripts</b></summary>
 
 | Command | |
 | --- | --- |
-| `npm run dev` | Local development |
-| `npm test` | 270+ unit tests (Vitest): parsers, categoriser, finance maths, AI failover, reminders, push. See [TESTING.md](TESTING.md) |
-| `npm run smoke` | Smoke tests against the live site (or pass a URL) |
+| `npm run dev` | Local development (builds go to `.next.nosync`, which iCloud skips) |
+| `npm test` | Unit tests (Vitest) |
 | `npm run typecheck` | TypeScript |
-| `npm run deploy` | Deploy to Vercel |
+| `npm run smoke` | Smoke tests against the live site (or pass a URL) |
+| `npx playwright test` | End-to-end journey (`E2E_BASE_URL` to target a deployment) |
+| `npm run deploy` | Copy env vars from `.env.local` to Vercel production and deploy |
 | `npm run setup-push` | Generate web-push keys and the cron secret into `.env.local` |
 | `npm run reset-password` | Set a user's password (admin) |
-
-</details>
-
-<details>
-<summary><b>How it's built</b></summary>
-
-- **Money is stored in paise** (integers) and dates in Asia/Kolkata, so no floating-point or timezone surprises.
-- **Ingestion** (`lib/ingest/`) is pure TypeScript that runs in the browser: PDF text extraction with pdf.js, a column-aware table reader with running-balance reconciliation, CSV and SMS parsers, and a layered categoriser (rules → structure → refunds → UPI-ID memory → brands → bank labels → people → keywords).
-- **AI** (`lib/ai/`) uses a provider abstraction over Anthropic and OpenAI-compatible APIs (Gemini, Groq, OpenAI, OpenRouter). It's limited to each provider's cheapest models, has seven read-only data tools, streams answers, and fails over automatically to a backup provider. Quotas are enforced by `SECURITY DEFINER` functions in Postgres.
-- **Reminders** use Web Push with VAPID, implemented without dependencies. Pushes are sent empty; the service worker fetches the content with the user's session. A daily Vercel cron decides what to send, and each reminder has a stable key so it's sent once.
-- **Observability:** `instrumentation.ts` captures server errors. Client error boundaries and AI failures are logged too, with a daily summary for the owner.
-
-```
-app/            pages, server actions and API routes (ask, export, ingest, cron, notifications)
-components/     UI: home, activity, budgets, insights, wealth, settings, ask, charts
-lib/ingest/     statement, SMS and quick-add parsing; categoriser and merchant list
-lib/ai/         AI providers, tools, limits and fallback
-lib/            finance maths, analytics, reminders, push, Supabase clients
-supabase/       database migrations
-public/sw.js    service worker for reminders
-```
 
 </details>
 
