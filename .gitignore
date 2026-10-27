@@ -1,6 +1,7 @@
 # dependencies and builds
 node_modules
 .next
+.next.nosync
 out
 *.tsbuildinfo
 next-env.d.ts

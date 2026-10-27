@@ -9,6 +9,9 @@ const securityHeaders = [
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // The repo lives in iCloud-synced ~/Documents; iCloud skips names ending in .nosync, so local builds
+  // don't get "* 2" duplicate chunks. Vercel and CI keep the standard .next.
+  distDir: process.env.VERCEL || process.env.CI ? ".next" : ".next.nosync",
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

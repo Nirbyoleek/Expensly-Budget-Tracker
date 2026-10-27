@@ -1,5 +1,8 @@
 /** Browser side of reminders: is push possible here, and turning it on or off for this device. */
 
+/** The service worker. In development it's told not to cache build files, which `next dev` rewrites in place. */
+export const SW_URL = process.env.NODE_ENV === "development" ? "/sw.js?dev" : "/sw.js";
+
 export const pushSupported = () =>
   typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
@@ -26,7 +29,7 @@ export async function subscribePush(): Promise<{ ok: true; sub: PushSubscription
   if (!key) return { ok: false, error: "Notifications aren't set up on the server yet." };
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false, error: "Notifications are blocked. Allow them for Expensly in your phone or browser settings." };
-  const reg = await navigator.serviceWorker.register("/sw.js");
+  const reg = await navigator.serviceWorker.register(SW_URL);
   await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) }));
   return { ok: true, sub: sub.toJSON() };

@@ -21,7 +21,8 @@ export function useWidth<T extends HTMLElement>(initial = 340) {
     const el = ref.current;
     if (!el) return;
     setW(el.clientWidth || initial);
-    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
+    // a hidden container reports 0; keep the last real width so bar maths never goes negative
+    const ro = new ResizeObserver(([e]) => { const cw = Math.round(e.contentRect.width); if (cw > 0) setW(cw); });
     ro.observe(el);
     return () => ro.disconnect();
   }, [initial]);

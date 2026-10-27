@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./app";
 import { ICONS, NAV, isActive, type NavItem } from "@/lib/nav";
+import { SW_URL } from "@/lib/push-client";
 
 export const NavIcon = ({ name }: { name: keyof typeof ICONS }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[name]} /></svg>
@@ -25,7 +26,7 @@ export default function TabBar() {
   const { openAdd, addMode, closeAdd } = useApp();
   useEffect(() => {
     // The service worker shows reminders; registering early means push works once it's switched on.
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register(SW_URL).catch(() => undefined);
     // Links from reminders like /home?add=statement open the right add sheet.
     const add = new URLSearchParams(window.location.search).get("add");
     if (add === "statement" || add === "quick" || add === "sms") {
