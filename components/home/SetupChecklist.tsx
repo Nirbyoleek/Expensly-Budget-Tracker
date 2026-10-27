@@ -14,7 +14,7 @@ export default function SetupChecklist({ hasData, hasIncome, hasBudgets, hasRemi
   const [, start] = useTransition();
   const steps: Step[] = [
     { id: "data", title: "Bring in your spending", why: "Import a bank or card statement", done: hasData, add: "statement" },
-    { id: "income", title: "Add your monthly income", why: "Unlocks your daily allowance and savings forecast", done: hasIncome, href: "/settings#income" },
+    { id: "income", title: "Add your monthly income", why: "Unlocks your daily allowance and savings forecast", done: hasIncome, href: "/insights#income" },
     { id: "budgets", title: "Set your budgets", why: "One tap with Plan with AI, based on your last months", done: hasBudgets, href: "/budgets" },
     { id: "reminders", title: "Turn on reminders", why: "Budget warnings and bills due tomorrow", done: hasReminders, href: "/settings#notifications" },
   ];

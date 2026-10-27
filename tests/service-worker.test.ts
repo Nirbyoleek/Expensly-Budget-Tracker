@@ -58,7 +58,7 @@ describe("service worker", () => {
 });
 
 describe("service worker: offline", () => {
-  function offlineWorker(network: (req: { url: string; mode?: string }) => Promise<Response>) {
+  function offlineWorker(network: (req: { url: string; mode?: string }) => Promise<Response>, search = "") {
     const stores = new Map<string, Map<string, Response>>();
     const open = async (name: string) => {
       if (!stores.has(name)) stores.set(name, new Map());
@@ -73,7 +73,7 @@ describe("service worker: offline", () => {
       match: async (u: string) => { for (const m of stores.values()) if (m.has(u)) return m.get(u)!.clone(); return undefined; },
     };
     const handlers: Record<string, (e: unknown) => void> = {};
-    const self = { addEventListener: (t: string, h: (e: unknown) => void) => { handlers[t] = h; }, skipWaiting: vi.fn(), clients: { claim: vi.fn() }, location: { origin: "https://app.test" }, registration: {} };
+    const self = { addEventListener: (t: string, h: (e: unknown) => void) => { handlers[t] = h; }, skipWaiting: vi.fn(), clients: { claim: vi.fn() }, location: { origin: "https://app.test", search }, registration: {} };
     vm.runInNewContext(readFileSync(path.join(__dirname, "..", "public", "sw.js"), "utf8"), { self, fetch: network, caches, URL, Response, Promise });
     const request = async (url: string, mode = "navigate", method = "GET") => {
       let res: Promise<Response> | undefined;
@@ -82,7 +82,8 @@ describe("service worker: offline", () => {
     };
     const install = async () => { let p: Promise<unknown> = Promise.resolve(); handlers.install({ waitUntil: (x: Promise<unknown>) => { p = x; } }); await p; };
     const message = async (data: string) => { let p: Promise<unknown> = Promise.resolve(); handlers.message({ data, waitUntil: (x: Promise<unknown>) => { p = x; } }); await p; };
-    return { request, install, message, stores };
+    const activate = async () => { let p: Promise<unknown> = Promise.resolve(); handlers.activate({ waitUntil: (x: Promise<unknown>) => { p = x; } }); await p; };
+    return { request, install, activate, message, stores };
   }
 
   it("serves the last copy of a tab when the network is gone, and the offline page otherwise", async () => {
@@ -107,5 +108,29 @@ describe("service worker: offline", () => {
     expect(w.stores.get("expensly-pages-v1")?.size).toBe(1);
     await w.message("clear-pages");
     expect(w.stores.has("expensly-pages-v1")).toBe(false);
+  });
+
+  it("never caches build files in development, where their names don't change between builds", async () => {
+    const w = offlineWorker(async () => new Response("build"), "?dev");
+    // left to the browser's own fetch
+    expect(await w.request("/_next/static/chunks/app/home/page.js", "no-cors")).toBeUndefined();
+    expect(w.stores.get("expensly-static-v1")?.size ?? 0).toBe(0);
+  });
+
+  it("throws away build files an older worker cached, once it's running in development", async () => {
+    const prod = offlineWorker(async () => new Response("old"));
+    await prod.request("/_next/static/chunks/app/home/page.js", "no-cors");
+    const dev = offlineWorker(async () => new Response("new"), "?dev");
+    dev.stores.set("expensly-static-v1", prod.stores.get("expensly-static-v1")!);
+    await dev.activate();
+    expect(dev.stores.has("expensly-static-v1")).toBe(false);
+  });
+
+  it("keeps caching build files in production, where every name carries a hash", async () => {
+    let build = 1;
+    const w = offlineWorker(async () => new Response(`build ${build}`));
+    await w.request("/_next/static/chunks/app/home/page-abc123.js", "no-cors");
+    build = 2;
+    expect(await (await w.request("/_next/static/chunks/app/home/page-abc123.js", "no-cors"))!.text()).toBe("build 1");
   });
 });

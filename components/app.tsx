@@ -112,6 +112,10 @@ function useSpotlight() {
 
 /* ───────────────────────── sheet ───────────────────────── */
 
+/** Open sheets, newest last. Only the top one answers Escape and Tab. */
+const openSheets: object[] = [];
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Sheet({ title, onClose, children, label }: { title: React.ReactNode; onClose: () => void; children: React.ReactNode; label?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef({ y: 0, dy: 0, on: false });
@@ -141,23 +145,45 @@ export function Sheet({ title, onClose, children, label }: { title: React.ReactN
       } else ref.current.style.transform = "";
     },
   };
+  // Escape closes; Tab stays inside the sheet; focus goes back to whatever opened it.
+  const opener = useRef<HTMLElement | null>(null);
+  const me = useRef({});
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
+    const id = me.current;
+    openSheets.push(id);
+    opener.current = document.activeElement as HTMLElement | null;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    ref.current?.querySelector<HTMLElement>("[data-autofocus], input, textarea, select")?.focus({ preventScroll: true });
+    const el = ref.current;
+    (el?.querySelector<HTMLElement>("[data-autofocus], input, textarea, select") ?? el)?.focus({ preventScroll: true });
     return () => {
-      document.removeEventListener("keydown", onKey);
+      openSheets.splice(openSheets.indexOf(id), 1);
       document.body.style.overflow = prev;
+      const back = opener.current;
+      if (back?.isConnected) back.focus({ preventScroll: true });
     };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (openSheets[openSheets.length - 1] !== me.current) return;
+      if (e.key === "Escape") return onClose();
+      if (e.key !== "Tab" || !ref.current) return;
+      const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === document.activeElement);
+      if (!items.length) return e.preventDefault();
+      const first = items[0], last = items[items.length - 1];
+      const inside = ref.current.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || !inside)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || !inside)) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   // Portaled to <body> so the sheet sits above the tab bar whatever page renders it.
   return createPortal(
     <>
       <div className="scrim" onClick={onClose} />
       <div className="sheet" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} aria-label={label ?? (typeof title === "string" ? title : undefined)}>
-        <div className="in" ref={ref}>
+        <div className="in" ref={ref} tabIndex={-1}>
           <div className="drag-zone" {...dragHandlers} onPointerCancel={dragHandlers.onPointerUp}>
           <div className="grab" />
           <div className="row">

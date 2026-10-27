@@ -56,7 +56,7 @@ export function remindersFor(args: {
     const sameMonth = tomorrow.slice(0, 7) === today.slice(0, 7);
     for (const r of detectRecurring(tx, today, cats)) {
       if (r.paidThisMonth || !sameMonth || r.day !== dayOf(tomorrow)) continue;
-      out.push({ key: `bill:${r.key}:${tomorrow}`, title: `${r.name} is due tomorrow`, body: `Usually ${rs(r.amount)} around the ${r.day}${ordinal(r.day)}. Keep it in your account.`, url: "/wealth#recurring" });
+      out.push({ key: `bill:${r.key}:${tomorrow}`, title: `${r.name} is due tomorrow`, body: `Usually ${rs(r.amount)} around the ${r.day}${ordinal(r.day)}. Keep it in your account.`, url: "/insights#recurring" });
     }
   }
 

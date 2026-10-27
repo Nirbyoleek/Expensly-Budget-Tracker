@@ -7,6 +7,7 @@ import { setBudget } from "@/app/actions";
 import { CatIcon, CountUp, Sheet, useApp } from "@/components/app";
 import { Ring } from "@/components/charts";
 import Header from "@/components/Header";
+import PlanTabs from "@/components/PlanTabs";
 import { inr, inrCompact } from "@/lib/money";
 import { monthLong, shortDate } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
@@ -50,7 +51,8 @@ export default function BudgetsView(props: {
 
   return (
     <>
-      <Header title="Budgets" subtitle={monthLong(props.month)} sample={props.sample} />
+      <Header title="Plan" subtitle={monthLong(props.month)} sample={props.sample} />
+      <PlanTabs />
       <div className="bud-layout">
       <div className="bud-side">
       <section className="card" style={{ display: "flex", gap: 18, alignItems: "center" }}>

@@ -4,15 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./app";
 import { PaletteButton } from "./AddButton";
+import { NavIcon } from "./TabBar";
+import { NAV, isActive } from "@/lib/nav";
 
-const NAV = [
-  { href: "/home", label: "Overview", icon: <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" strokeLinejoin="round" /> },
-  { href: "/activity", label: "Activity", icon: <path d="M4 6h16M4 12h16M4 18h10" strokeLinecap="round" /> },
-  { href: "/ask", label: "Ask Expensly", icon: <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" strokeLinejoin="round" /> },
-  { href: "/insights", label: "Insights", icon: <><path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" strokeLinejoin="round" /><path d="M9.5 20h5" strokeLinecap="round" /></> },
-  { href: "/budgets", label: "Budgets", icon: <><circle cx="12" cy="12" r="9" /><path d="M12 3v9l6.5 6.5" /></> },
-  { href: "/wealth", label: "Wealth", icon: <><path d="M3 17l6-6 4 4 8-8" strokeLinecap="round" strokeLinejoin="round" /><path d="M15 7h6v6" strokeLinecap="round" strokeLinejoin="round" /></> },
-];
 
 const SETTINGS_ICON = (
   <>
@@ -48,7 +42,15 @@ export default function Sidebar() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         Add spending
       </button>
-      <nav className="side-nav">{NAV.map((n) => item(n.href, n.label, n.icon))}</nav>
+      <nav className="side-nav">
+        {NAV.map((n) => (
+          <Link key={n.href} href={n.href} className="side-link" aria-current={isActive(path, n) ? "page" : undefined}>
+            <NavIcon name={n.icon} />
+            {n.label}
+          </Link>
+        ))}
+        {item("/ask", "Ask Expensly", <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" strokeLinejoin="round" />)}
+      </nav>
       <div className="side-section">
         <span className="eyebrow">Bring data in</span>
         <button className="side-link" onClick={() => openAdd("statement")}>

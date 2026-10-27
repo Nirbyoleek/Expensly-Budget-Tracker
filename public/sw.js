@@ -4,12 +4,15 @@ const STATIC = "expensly-static-v1";
 const PAGES = "expensly-pages-v1";
 // Pages kept for offline use. Only the main tabs, and only after you've opened them signed in.
 const APP_PAGES = ["/home", "/activity", "/budgets", "/insights", "/wealth"];
+// Registered as /sw.js?dev by `next dev`, whose build files keep the same names between builds:
+// caching them would mix old chunks with a new runtime ("originalFactory.call" errors).
+const DEV = /[?&]dev(&|=|$)/.test((self.location && self.location.search) || "");
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(STATIC).then((c) => c.addAll(["/offline", "/icons/icon-192.png"])).catch(() => undefined).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => e.waitUntil((async () => {
-  for (const k of await caches.keys()) if (k.startsWith("expensly-") && k !== STATIC && k !== PAGES) await caches.delete(k);
+  for (const k of await caches.keys()) if (k.startsWith("expensly-") && ((k !== STATIC && k !== PAGES) || (DEV && k === STATIC))) await caches.delete(k);
   await self.clients.claim();
 })()));
 
@@ -24,6 +27,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   // Build files never change once published (their names carry a hash): cache first.
+  if (DEV && url.pathname.startsWith("/_next/")) return;
   if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
     event.respondWith(caches.open(STATIC).then(async (c) => {
       const hit = await c.match(req);

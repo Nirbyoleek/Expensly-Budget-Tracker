@@ -590,7 +590,7 @@ export function headlineInsights(a: Analysis): { id: string; tone: "good" | "bad
       ? { id: "income", tone: "good", glyph: "₹", title: `On track to save ${fmt(i.projectedLeft + a.split.savings)}`, body: `${Math.round(i.projectedRate * 100)}% of your income, above your ${i.plan.savings_goal_pct}% goal. Keep everyday spend under ${fmt(i.dailyAllowance)} a day.`, href: "/insights" }
       : { id: "income", tone: "warn", glyph: "₹", title: `${fmt(-i.goalGap)} short of your savings goal`, body: `Spend under ${fmt(i.dailyAllowance)} a day on everyday things to still save ${fmt(i.goal)} this month.`, href: "/insights" });
   } else {
-    out.push({ id: "income", tone: "info", glyph: "₹", title: "Add your monthly income", body: "Tell Expensly your salary and payday for savings forecasts, a daily allowance and a fairer health score.", href: "/settings#income" });
+    out.push({ id: "income", tone: "info", glyph: "₹", title: "Add your monthly income", body: "Tell Expensly your salary and payday for savings forecasts, a daily allowance and a fairer health score.", href: "/insights#income" });
   }
   for (const al of a.alerts.filter((x) => x.kind === "duplicate" || x.kind === "price").slice(0, 2))
     out.push({ id: al.id, tone: "bad", glyph: al.kind === "price" ? "↑" : "⧉", title: al.title, body: al.body, href: "/insights" });

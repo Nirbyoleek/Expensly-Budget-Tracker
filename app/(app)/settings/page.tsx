@@ -28,7 +28,6 @@ export default async function SettingsPage() {
       plan={resolvePlan(incomePlans, monthStart(todayISO()))}
       notify={profile.notify}
       health={health}
-      seenSalary={tx.find((t) => t.category_id === "income" && t.subcategory_id === "salary")?.amount_paise ?? null}
     />
   );
 }

@@ -1,14 +1,13 @@
 import WealthView from "@/components/wealth/WealthView";
-import { getAccounts, getCategories, getGoals, getRecentTransactions, getSnapshots } from "@/lib/data";
+import { getAccounts, getGoals, getRecentTransactions, getSnapshots } from "@/lib/data";
 import { netWorth } from "@/lib/finance";
-import { recurringPayments } from "@/lib/analytics";
 import { goalProgress } from "@/lib/goals";
 import { monthStart, todayISO } from "@/lib/dates";
 
 export const metadata = { title: "Wealth · Expensly" };
 
 export default async function WealthPage() {
-  const [accounts, goals, snapshots, tx, cats] = await Promise.all([getAccounts(), getGoals(), getSnapshots(), getRecentTransactions(), getCategories()]);
+  const [accounts, goals, snapshots, tx] = await Promise.all([getAccounts(), getGoals(), getSnapshots(), getRecentTransactions()]);
   const today = todayISO();
   const month = monthStart(today);
   const trend = [
@@ -25,8 +24,6 @@ export default async function WealthPage() {
       goals={goals}
       progress={progress}
       trend={trend}
-      subscriptions={recurringPayments(tx, cats, today)}
-      todayIso={today}
       sample={tx.some((t) => t.source === "sample") || accounts.some((a) => a.is_sample)}
     />
   );

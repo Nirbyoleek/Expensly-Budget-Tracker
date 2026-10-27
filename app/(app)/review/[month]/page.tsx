@@ -31,7 +31,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ month: 
   return (
     <>
       <Header title="Month in review" subtitle={monthLong(month)} />
-      <div className="stack review" style={{ maxWidth: 760 }}>
+      <div className="stack review-page" style={{ maxWidth: 760 }}>
         <nav className="review-nav" aria-label="Choose month">
           {older ? <Link className="link" href={`/review/${older.slice(0, 7)}`}>‹ {monthLong(older)}</Link> : <span />}
           {newer ? <Link className="link" href={`/review/${newer.slice(0, 7)}`}>{monthLong(newer)} ›</Link> : <span />}
