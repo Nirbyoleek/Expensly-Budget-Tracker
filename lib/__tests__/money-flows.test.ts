@@ -27,7 +27,7 @@ describe("spending is net of refunds and paybacks", () => {
   });
 
   it("splits money in by kind", () => {
-    expect(moneyIn(rows)).toEqual({ income: 5000000, refunds: 100000, fromPeople: 50000, transfers: 2000000, investments: 200000, total: 7350000, count: 5 });
+    expect(moneyIn(rows)).toEqual({ income: 5000000, salary: 0, extra: 5000000, toBudget: 0, refunds: 100000, fromPeople: 50000, transfers: 2000000, investments: 200000, total: 7350000, count: 5 });
   });
 
   it("reports gross spend before anything came back", () => {
