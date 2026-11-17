@@ -43,6 +43,7 @@ function Palette({ onClose, openAdd }: { onClose: () => void; openAdd: ReturnTyp
     { id: "wealth", group: "Go to", label: "Plan: goals & net worth", glyph: "↗", run: go("/wealth"), keywords: "wealth net worth accounts goals savings" },
     { id: "settings", group: "Go to", label: "Settings", glyph: "⚙", run: go("/settings"), keywords: "sample token export delete" },
     { id: "add", group: "Actions", label: "Add spending", hint: "N", glyph: "+", run: () => openAdd("quick"), keywords: "new expense quick" },
+    { id: "money-in", group: "Actions", label: "Add money in", glyph: "₹", run: () => openAdd("income"), keywords: "income extra money received got gift freelance sold rent family" },
     { id: "import", group: "Actions", label: "Import a statement", glyph: "↧", run: () => openAdd("statement"), keywords: "csv pdf cred card bank upload" },
     { id: "sms", group: "Actions", label: "Paste bank SMS", glyph: "✉", run: () => openAdd("sms"), keywords: "upi alert message" },
     { id: "export", group: "Actions", label: "Download transactions (CSV)", glyph: "⇣", run: () => { onClose(); window.location.href = "/api/export"; }, keywords: "export csv backup" },

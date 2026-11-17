@@ -14,6 +14,8 @@ type Props = {
   projected: number;
   pace: number;
   paceDiff: number;
+  /** Extra money (not salary) added to this month's budget; already inside budgetTotal. */
+  boost?: number;
 };
 
 /** The gauge card. Tap it (or use the arrow keys) to switch between three readings of the same budget. */
@@ -31,7 +33,7 @@ export default function SafeHero(p: Props) {
       : p.budgetTotal > 0 && p.safePerDay === 0
         ? { label: "Budget used up", value: 0, sub: `${inr(p.upcomingTotal)} of bills still to come`, tone: "bad" }
         : { label: "Safe to spend today", value: p.safePerDay, sub: `a day for the next ${days}`, tone: "" },
-    { label: over ? "Spent this month" : "Left this month", value: over ? p.spent : left, sub: over ? `against a ${inr(p.budgetTotal)} budget` : `of ${inr(p.budgetTotal)}`, tone: "" },
+    { label: over ? "Spent this month" : "Left this month", value: over ? p.spent : left, sub: over ? `against a ${inr(p.budgetTotal)} budget` : `of ${inr(p.budgetTotal)}${p.boost ? `, incl. ${inr(p.boost)} extra money` : ""}`, tone: "" },
     { label: "Month-end forecast", value: p.projected, sub: projDiff >= 0 ? `${inr(projDiff)} under budget` : `${inr(-projDiff)} over budget`, tone: projDiff >= 0 ? "good" : "bad" },
   ];
   const v = views[mode];
@@ -68,6 +70,7 @@ export default function SafeHero(p: Props) {
           <div key={s.l}><b>{s.v !== undefined ? <CountUp value={s.v} compact /> : s.t}</b><span>{s.l}</span></div>
         ))}
       </div>
+      {p.boost ? <p className="hero-note boost-note">＋{inr(p.boost)} extra money added to this month&apos;s budget</p> : null}
       {over ? (
         <p className="hero-note">Keep to essentials for the next {days}.</p>
       ) : p.budgetTotal > 0 && p.pace > 0 ? (

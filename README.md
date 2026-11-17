@@ -94,6 +94,7 @@ You can mix all three. **Duplicates are caught automatically**, so overlapping s
 - **Statements (recommended).** Tap **＋ → Statement** and pick a PDF or CSV. Password-protected PDFs work: the password is used only on your device. Expensly finds the statement's columns, checks every row against the running balance ("✓ Balances add up on all 165 rows"), and shows a preview before anything is saved.
 - **Bank SMS.** Paste one or more UPI or card alerts. On iPhone a Shortcut can forward them automatically.
 - **Quick add.** Type it the way you'd text a friend: `chai 20, auto 60, swiggy 340, rent 12k, +18000 freelance`.
+- **Money in.** Got paid for a side gig, given money by family, or sold something? Tap **＋ → Money in**, enter the amount and where it came from. Tick **Add to this month's budget** and what's safe to spend grows with it. Salary isn't entered here; set it once under *Your income*.
 
 ## Privacy
 
@@ -335,7 +336,7 @@ safe per day = max(0, ⌊ (budget total − spent so far − upcoming bills) ÷ 
 
 | Term | Where it comes from |
 |---|---|
-| **budget total** | Each category's limit for this month, carried forward from the last month it was set (`resolveBudgets`) |
+| **budget total** | Each category's limit for this month, carried forward from the last month it was set (`resolveBudgets`), plus extra money (income other than salary) you chose to add to this month's budget (`budgetBoostOf`, only once you have budgets) |
 | **spent** | Money out minus refunds, excluding transfers, card bill payments and investments |
 | **upcoming bills** | Recurring payments (`detectRecurring`) not yet paid this month and due later in it |
 | **pace** | `day ÷ days in month`; the marker on every budget bar |

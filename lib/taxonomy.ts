@@ -66,11 +66,16 @@ export const TAXONOMY: CategoryDef[] = [
     ["sip", "Mutual fund SIPs"], ["stocks", "Stocks"], ["deposits", "FDs & RDs"], ["gold", "Gold"], ["retirement", "PPF, EPF & NPS"],
   ]),
   C("income", "Income", "#3DDC97", "income", 0, 90, "income", [
-    ["salary", "Salary"], ["freelance", "Freelance & business"], ["cashback", "Cashback & rewards"], ["interest", "Interest earned"],
-    ["dividend", "Dividends"], ["gifts", "Gifts received"], ["other", "Other income"],
+    ["salary", "Salary"], ["freelance", "Freelance & business"], ["family", "From family"], ["gifts", "Gifts received"],
+    ["sold", "Sold something"], ["rent", "Rent received"], ["cashback", "Cashback & rewards"], ["interest", "Interest earned"],
+    ["dividend", "Dividends"], ["other", "Other income"],
   ]),
   C("xfer", "Card payments & transfers", "#8A93A8", "transfer", 0, 91, "transfer", [["card", "Credit card bill"], ["self", "Between your accounts"]]),
 ];
+
+/** Where money in can come from, other than salary (subcategories of Income). */
+export const MONEY_IN_SOURCES = ["freelance", "family", "gifts", "sold", "rent", "cashback", "interest", "dividend", "other"] as const;
+export type MoneyInSource = (typeof MONEY_IN_SOURCES)[number];
 
 export const TAXONOMY_BY_ID: Record<string, CategoryDef> = Object.fromEntries(TAXONOMY.map((c) => [c.id, c]));
 

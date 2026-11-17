@@ -10,7 +10,7 @@ import type { BudgetRow, Category, Transaction } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TX_COLUMNS = "id,date,amount_paise,merchant_name,merchant_raw,category_id,subcategory_id,source,reviewed,note,account_id,import_id";
+const TX_COLUMNS = "id,date,amount_paise,merchant_name,merchant_raw,category_id,subcategory_id,source,reviewed,note,account_id,import_id,adds_to_budget";
 
 /**
  * Runs once a day (vercel.json → 9:00 IST). For every user: work out today's reminders, save the

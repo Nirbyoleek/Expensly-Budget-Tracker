@@ -36,6 +36,9 @@ export default function TxSheet({ tx, onClose, onDelete, startWithDelete, onMerc
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
   const [moneyIn, setMoneyIn] = useState(tx.amount_paise > 0);
+  const [toBudget, setToBudget] = useState(!!tx.adds_to_budget);
+  // Extra money (any income but salary) can count towards its month's budget.
+  const canBoost = moneyIn && cat === "income" && sub !== "salary";
   // Why Expensly filed it here: re-run the categoriser on the original bank text.
   const why = useMemo(() => {
     if (!tx.merchant_raw || tx.source === "manual" || tx.source === "sample") return null;
@@ -49,7 +52,7 @@ export default function TxSheet({ tx, onClose, onDelete, startWithDelete, onMerc
     if (!(rupees > 0)) return setError("Enter an amount above zero.");
     setError("");
     start(async () => {
-      const r = await updateTransaction(tx.id, { merchant_name: name, amount_paise: (moneyIn ? 1 : -1) * toPaise(rupees), date, category_id: cat, subcategory_id: sub, note: note.trim() || null }, always && learnable && (cat !== tx.category_id || sub !== (tx.subcategory_id ?? null)));
+      const r = await updateTransaction(tx.id, { merchant_name: name, amount_paise: (moneyIn ? 1 : -1) * toPaise(rupees), date, category_id: cat, subcategory_id: sub, note: note.trim() || null, adds_to_budget: canBoost && toBudget }, always && learnable && (cat !== tx.category_id || sub !== (tx.subcategory_id ?? null)));
       if (!r.ok) return setError(r.error);
       onClose();
       router.refresh();
@@ -72,6 +75,12 @@ export default function TxSheet({ tx, onClose, onDelete, startWithDelete, onMerc
       <div className="lbl">CATEGORY</div>
       <CategoryPickerWithNew value={cat} onChange={(c) => { setCat(c); setSub(null); if (c === "income") setMoneyIn(true); }} />
       <SubPicker category={cat} value={sub} onChange={setSub} />
+      {canBoost && (
+        <label className="mi-toggle" htmlFor="tx-boost">
+          <input id="tx-boost" type="checkbox" checked={toBudget} onChange={(e) => setToBudget(e.target.checked)} />
+          <span><b>Add to that month&apos;s budget</b><small>Raises what you can spend that month by this amount.</small></span>
+        </label>
+      )}
       {cat === "uncat" && <p className="hint warn-text">Pick a category to take this out of “To review”. None fit? Use ＋ New category.</p>}
       {why && cat === tx.category_id && (
         <div className="note" style={{ fontSize: 12 }}>

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * One person's whole journey through Expensly, on a fresh throwaway account:
- * sign up → quick add → sort an uncategorised spend → import a statement → make a category with a
+ * sign up → quick add → money in → sort an uncategorised spend → import a statement → make a category with a
  * budget → Insights, Month in review, Wealth, export, capture setup → delete the account.
  *
  * Accounts are e2e-…@expensly.test: the app never spends AI on them, leaves them out of usage
@@ -42,6 +42,18 @@ test("quick add three spends", async () => {
   await box.fill(`chai 20, auto 60, ${UNKNOWN.toLowerCase()} 99`);
   await page.getByRole("button", { name: /^Add 3 transactions$/ }).click();
   await toast(/Added 3 transactions/);
+});
+
+test("add money from a side gig and it raises this month's budget", async () => {
+  await page.goto("/home?add=income");
+  await page.locator("#mi-amount").fill("5000");
+  await page.getByRole("radio", { name: "Freelance & business" }).click();
+  await page.locator("#mi-from").fill("E2E client");
+  await expect(page.getByRole("checkbox", { name: /Add to this month's budget/ })).toBeChecked();
+  await page.getByRole("button", { name: "Add +₹5,000" }).click();
+  await toast(/₹5,000 added/);
+  await page.goto("/budgets");
+  await expect(page.locator(".budget-total")).toContainText("+₹5,000");
 });
 
 test("uncategorised spend waits in To review until it gets a category", async () => {

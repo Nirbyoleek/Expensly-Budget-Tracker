@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { inr } from "@/lib/money";
 import type { MoneyIn } from "@/lib/finance";
+import AddMoneyInButton from "./AddMoneyInButton";
 
 /**
  * Credits and debits side by side. Refunds and money back from friends are shown as money in,
@@ -9,7 +10,8 @@ import type { MoneyIn } from "@/lib/finance";
 export default function MoneyInOut({ inflow, gross, net, className = "" }: { inflow: MoneyIn; gross: number; net: number; className?: string }) {
   const offsets = gross - net;
   const rows: { label: string; value: number; hint: string }[] = [
-    { label: "Income", value: inflow.income, hint: "Salary, interest, cashback and other earnings" },
+    { label: "Salary", value: inflow.salary, hint: "Your pay" },
+    { label: "Extra money", value: inflow.extra, hint: inflow.toBudget > 0 ? `Freelance, gifts, cashback and more · ${inr(inflow.toBudget)} added to your budget` : "Freelance, gifts, cashback, things you sold and more" },
     { label: "Refunds", value: inflow.refunds, hint: "Taken off the category they came back to" },
     { label: "Back from people", value: inflow.fromPeople, hint: "Splits and paybacks, taken off what you sent to people" },
     { label: "Own transfers & card payments", value: inflow.transfers, hint: "Not counted as income or spending" },
@@ -37,8 +39,9 @@ export default function MoneyInOut({ inflow, gross, net, className = "" }: { inf
           ))}
         </div>
       ) : (
-        <p className="empty">No money has come in this month yet. Import a bank statement to see credits too; card statements mostly show spends.</p>
+        <p className="empty">No money has come in this month yet. Got paid for something, or given money? Add it here; a bank statement import shows credits too.</p>
       )}
+      <div style={{ marginTop: 10 }}><AddMoneyInButton /></div>
       {inflow.income > 0 && (
         <p className="hint" style={{ marginTop: 8 }}>
           {kept >= 0 ? `You've kept ${inr(kept)} of this month's income so far.` : `You've spent ${inr(-kept)} more than you earned this month.`}

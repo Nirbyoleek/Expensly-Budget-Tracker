@@ -1,5 +1,5 @@
 import { addMonths, dayOf, daysInMonth, monthLong, monthShort, monthStart } from "./dates";
-import { FIXED_CATS, incomeOf, inMonth, resolveBudgets, shiftDays, spentByCategory } from "./finance";
+import { budgetBoostOf, FIXED_CATS, incomeOf, inMonth, resolveBudgets, shiftDays, spentByCategory } from "./finance";
 import { TAXONOMY_BY_ID, groupFor, subName, type Group } from "./taxonomy";
 import type { BudgetRow, Category, IncomePlanRow, Transaction } from "./types";
 import { incomeStatus, resolvePlan, type IncomePlan, type IncomeStatus } from "./income";
@@ -403,7 +403,10 @@ export function healthScore(args: { tx: Transaction[]; cats: Category[]; budgetR
   const budgets = resolveBudgets(args.budgetRows, cats, month);
   const spentNow = spentByCategory(inMonth(tx, month), cats);
   const budgeted = Object.keys(budgets).filter((id) => budgets[id] > 0);
-  const budgetTotal = sum(budgeted.map((id) => budgets[id]));
+  const baseBudget = sum(budgeted.map((id) => budgets[id]));
+  // extra money you added to this month's budget stretches it, as on Home
+  const boost = baseBudget > 0 ? budgetBoostOf(inMonth(tx, month)) : 0;
+  const budgetTotal = baseBudget + boost;
   const spentNowTotal = sum(Object.values(spentNow));
   const scale = spentNowTotal > 0 ? Math.max(1, args.forecast / spentNowTotal) : 1; // how much more the month is likely to add
   const projected = sum(budgeted.map((id) => spentNow[id] ?? 0)) * scale;
@@ -415,7 +418,7 @@ export function healthScore(args: { tx: Transaction[]; cats: Category[]; budgetR
     parts.push({
       id: "budget", label: "Budget pace", max: 20, score, status: statusOf(score, 20, ratio !== null),
       value: ratio === null ? "—" : ratio >= 2 ? `${ratio.toFixed(1)}×` : pctTxt(ratio), target: "Finish at or under budget",
-      note: ratio === null ? "No budgets set yet." : `Heading for ${fmt(projected)} against ${fmt(budgetTotal)} budgeted${over.length ? `; ${over.slice(0, 2).join(" and ")}${over.length > 2 ? ` +${over.length - 2}` : ""} already over` : ""}.${outside > 0 ? ` ${fmt(outside)} more went to categories with no budget.` : ""}`,
+      note: ratio === null ? "No budgets set yet." : `Heading for ${fmt(projected)} against ${fmt(budgetTotal)} budgeted${boost ? ` (incl. ${fmt(boost)} extra money)` : ""}${over.length ? `; ${over.slice(0, 2).join(" and ")}${over.length > 2 ? ` +${over.length - 2}` : ""} already over` : ""}.${outside > 0 ? ` ${fmt(outside)} more went to categories with no budget.` : ""}`,
       fix: ratio === null ? "Set budgets for the categories you spend most in." : ratio > 1 ? (budgetTotal < spentNowTotal * 0.5 ? "Your budgets cover only part of your spending. Set realistic ones for every big category." : "Slow down in the categories that are over, or raise budgets that were set too low.") : null,
       href: "/budgets", action: ratio === null ? "Set budgets" : "Open budgets",
     });

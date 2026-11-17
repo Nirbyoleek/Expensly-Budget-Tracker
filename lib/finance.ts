@@ -16,6 +16,11 @@ export type MonthView = {
   daysLeft: number; // including today
   pace: number; // share of month gone, 0–1
   budgets: Record<string, number>;
+  /** What your category budgets add up to. */
+  baseBudget: number;
+  /** Extra money (not salary) you added to this month's budget. */
+  budgetBoost: number;
+  /** baseBudget + budgetBoost: what "safe to spend" works from. */
   budgetTotal: number;
   spentByCat: Record<string, number>;
   spent: number;
@@ -62,14 +67,32 @@ export function spentByCategory(tx: Transaction[], cats: Category[]): Record<str
  * Every rupee that came in this period, by kind. Only income is "earned"; refunds and money back
  * from people already reduce spending, and transfers between your own accounts are neutral.
  */
-export type MoneyIn = { income: number; refunds: number; fromPeople: number; transfers: number; investments: number; total: number; count: number };
+export type MoneyIn = {
+  income: number;
+  /** Income split: salary, and everything else you earned or were given. */
+  salary: number; extra: number;
+  /** The part of `extra` you added to this month's budget. */
+  toBudget: number;
+  refunds: number; fromPeople: number; transfers: number; investments: number; total: number; count: number;
+};
+/** Money in that isn't salary and that you chose to add to the month's budget. */
+export const isBudgetBoost = (t: Transaction) => !!t.adds_to_budget && t.amount_paise > 0 && t.category_id === "income" && t.subcategory_id !== "salary";
+
+/** How much extra money was added to the budget in these transactions. */
+export const budgetBoostOf = (tx: Transaction[]) => tx.filter(isBudgetBoost).reduce((a, t) => a + t.amount_paise, 0);
+
 export function moneyIn(tx: Transaction[]): MoneyIn {
-  const out: MoneyIn = { income: 0, refunds: 0, fromPeople: 0, transfers: 0, investments: 0, total: 0, count: 0 };
+  const out: MoneyIn = { income: 0, salary: 0, extra: 0, toBudget: 0, refunds: 0, fromPeople: 0, transfers: 0, investments: 0, total: 0, count: 0 };
   for (const t of tx) {
     if (t.amount_paise <= 0) continue;
     out.total += t.amount_paise;
     out.count++;
-    if (t.category_id === "income") out.income += t.amount_paise;
+    if (t.category_id === "income") {
+      out.income += t.amount_paise;
+      if (t.subcategory_id === "salary") out.salary += t.amount_paise;
+      else out.extra += t.amount_paise;
+      if (isBudgetBoost(t)) out.toBudget += t.amount_paise;
+    }
     else if (t.category_id === "people") out.fromPeople += t.amount_paise;
     else if (t.category_id === "xfer") out.transfers += t.amount_paise;
     else if (t.category_id === "invest") out.investments += t.amount_paise;
@@ -176,7 +199,10 @@ export function monthView(args: {
   const daysLeft = dim - day + 1;
   const mtx = inMonth(args.tx, month);
   const budgets = resolveBudgets(args.budgetRows, cats, month);
-  const budgetTotal = Object.values(budgets).reduce((a, b) => a + b, 0);
+  const baseBudget = Object.values(budgets).reduce((a, b) => a + b, 0);
+  // Extra money you chose to add raises what you can spend this month, once you have budgets to add it to.
+  const budgetBoost = baseBudget > 0 ? budgetBoostOf(mtx) : 0;
+  const budgetTotal = baseBudget + budgetBoost;
   const spentByCat = spentByCategory(mtx, cats);
   const spent = Object.values(spentByCat).reduce((a, b) => a + b, 0);
   const income = incomeOf(mtx);
@@ -188,7 +214,7 @@ export function monthView(args: {
   const variable = spent - fixedSpent;
   const projected = Math.round(fixedSpent + upcomingTotal + (variable / day) * dim);
   return {
-    today, month, day, dim, daysLeft, pace, budgets, budgetTotal, spentByCat, spent, income,
+    today, month, day, dim, daysLeft, pace, budgets, baseBudget, budgetBoost, budgetTotal, spentByCat, spent, income,
     saved: income - spent,
     safePerDay: Math.max(0, Math.floor((budgetTotal - spent - upcomingTotal) / daysLeft)),
     upcomingBills, upcomingTotal,

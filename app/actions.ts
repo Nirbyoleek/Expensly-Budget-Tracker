@@ -6,7 +6,9 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { addMonths, monthStart, todayISO } from "@/lib/dates";
+import { addMonths, daysInMonth, monthStart, todayISO } from "@/lib/dates";
+import { budgetBoostOf, resolveBudgets } from "@/lib/finance";
+import { MONEY_IN_SOURCES, subName } from "@/lib/taxonomy";
 import { buildMemory, isGenericName, prepareRow, ruleKey, vpaOf } from "@/lib/ingest/core";
 import type { MerchantRule, Transaction } from "@/lib/types";
 import { track, trackAs } from "@/lib/track";
@@ -214,17 +216,68 @@ export async function findExisting(hashes: string[]): Promise<string[]> {
   return found;
 }
 
+/**
+ * Money you got from somewhere other than your salary. Saved as income, and when you ask, it's added
+ * to this month's budget so "safe to spend" grows with it. Returns the month's new budget figures.
+ */
+export async function addMoneyIn(input: { amount_paise: number; source: string; from?: string | null; date: string; note?: string | null; adds_to_budget: boolean }): Promise<ActionResult<{ budgetTotal: number; boost: number; hasBudgets: boolean; thisMonth: boolean }>> {
+  try {
+    const { supabase } = await session();
+    const p = z.object({
+      amount_paise: z.number().int().positive("Enter an amount above zero.").max(1e11, "That amount is too large."),
+      source: z.enum(MONEY_IN_SOURCES, { message: "Pick where the money came from." }),
+      from: z.string().trim().max(60).nullable().optional(),
+      date: IsoDate.refine((d) => d <= todayISO(), "That date is in the future."),
+      note: z.string().trim().max(500).nullable().optional(),
+      adds_to_budget: z.boolean(),
+    }).parse(input);
+    const { error } = await supabase.from("transactions").insert({
+      date: p.date,
+      amount_paise: p.amount_paise,
+      merchant_name: p.from || subName("income", p.source) || "Money in",
+      merchant_raw: null,
+      category_id: "income",
+      subcategory_id: p.source,
+      source: "manual",
+      reviewed: true,
+      note: p.note || null,
+      adds_to_budget: p.adds_to_budget,
+    });
+    if (error) throw new Error(error.message);
+
+    // This month's budget after the change, for the confirmation.
+    const month = monthStart(todayISO());
+    const end = `${month.slice(0, 8)}${String(daysInMonth(month)).padStart(2, "0")}`;
+    const [{ data: rows }, { data: cats }, { data: budgetRows }] = await Promise.all([
+      supabase.from("transactions").select("amount_paise,category_id,subcategory_id,adds_to_budget").gte("date", month).lte("date", end).gt("amount_paise", 0).eq("category_id", "income"),
+      supabase.from("categories").select("id,name,color,kind,default_budget_paise,sort,user_id,grp"),
+      supabase.from("budgets").select("category_id,month,limit_paise"),
+    ]);
+    const base = Object.values(resolveBudgets((budgetRows ?? []) as never, (cats ?? []) as never, month)).reduce((a, b) => a + b, 0);
+    const boost = base > 0 ? budgetBoostOf((rows ?? []) as never) : 0;
+    track(supabase, "money_in_added", { source: p.source, to_budget: p.adds_to_budget });
+    done();
+    return { ok: true, budgetTotal: base + boost, boost, hasBudgets: base > 0, thisMonth: p.date >= month };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function updateTransaction(
   id: string,
-  patch: { merchant_name: string; amount_paise: number; date: string; category_id: string; subcategory_id?: string | null; note?: string | null },
+  patch: { merchant_name: string; amount_paise: number; date: string; category_id: string; subcategory_id?: string | null; note?: string | null; adds_to_budget?: boolean },
   alwaysForMerchant = false,
 ): Promise<ActionResult<{ alsoChanged: number }>> {
   try {
     const { supabase } = await session();
     const txId = z.string().uuid().parse(id);
     const p = z
-      .object({ merchant_name: z.string().trim().min(1, "Give it a name.").max(80), amount_paise: Paise, date: IsoDate, category_id: CategoryId, subcategory_id: SubId, note: z.string().max(500).nullable().optional() })
+      .object({ merchant_name: z.string().trim().min(1, "Give it a name.").max(80), amount_paise: Paise, date: IsoDate, category_id: CategoryId, subcategory_id: SubId, note: z.string().max(500).nullable().optional(), adds_to_budget: z.boolean().optional() })
       .parse(patch);
+    // Only extra money in (not salary) can add to the budget; changing it to anything else takes it off.
+    if (p.adds_to_budget !== undefined || p.category_id !== "income" || p.subcategory_id === "salary" || p.amount_paise <= 0) {
+      p.adds_to_budget = !!p.adds_to_budget && p.category_id === "income" && p.subcategory_id !== "salary" && p.amount_paise > 0;
+    }
     await assertCategories(supabase, [p.category_id]);
     const { data: before } = await supabase.from("transactions").select("merchant_name,merchant_raw,category_id").eq("id", txId).maybeSingle();
     const { error } = await supabase.from("transactions").update({ ...p, reviewed: true, updated_at: new Date().toISOString() }).eq("id", txId);

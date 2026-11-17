@@ -1177,3 +1177,18 @@ a.btn { display: inline-flex; justify-content: center; text-align: center; }
 .admin-funnel { padding: 8px 0; }
 .admin-funnel .row { font-size: 14px; margin-bottom: 6px; }
 .admin-two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+/* money in */
+.amount-field { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.amount-field > span { font: 700 26px var(--display); color: var(--muted); }
+.amount-field .field { font-size: 26px; font-weight: 700; margin-top: 0; }
+.mi-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
+.mi-toggle { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--good) 40%, var(--line)); background: color-mix(in srgb, var(--good) 8%, transparent); cursor: pointer; }
+.mi-toggle input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--good); flex: none; }
+.mi-toggle span { display: flex; flex-direction: column; gap: 2px; }
+.mi-toggle small { color: var(--muted); font-size: 12.5px; }
+.mi-toggle.off { opacity: 0.6; cursor: default; border-color: var(--line); background: none; }
+.boost-note { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--good); }
+.budget-total .bt-line { display: flex; justify-content: space-between; padding: 7px 0; font-size: 14px; border-bottom: 1px dashed var(--line); }
+.budget-total .bt-line.sum { border-bottom: 0; font-weight: 800; font-size: 15px; }
+.budget-total .bt-line.sum b { font-size: 18px; }
