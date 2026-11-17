@@ -6,7 +6,7 @@ import { SYSTEM_CATEGORIES } from "@/lib/categories";
 import { addMonths, monthStart, todayISO } from "@/lib/dates";
 import type { Account, BudgetRow, Category, Goal, IncomePlanRow, MerchantRule, Snapshot, Transaction } from "@/lib/types";
 
-const TX_COLUMNS = "id,date,amount_paise,merchant_name,merchant_raw,category_id,subcategory_id,source,reviewed,note,account_id,import_id";
+const TX_COLUMNS = "id,date,amount_paise,merchant_name,merchant_raw,category_id,subcategory_id,source,reviewed,note,account_id,import_id,adds_to_budget";
 
 /** The signed-in user, or a redirect to /login. Cached per request. */
 export const requireUser = cache(async () => {

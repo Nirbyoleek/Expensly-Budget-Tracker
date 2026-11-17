@@ -13,7 +13,7 @@ export const EVENTS = [
   "category_created", "category_deleted", "budget_set", "ai_budget_plan",
   "goal_created", "goal_autofill", "income_set", "account_saved", "recategorised",
   "ai_question", "ai_sort", "capture_key", "sms_captured", "push_enabled",
-  "export", "sample_loaded", "account_deleted", "offline_synced",
+  "export", "sample_loaded", "account_deleted", "offline_synced", "money_in_added",
 ] as const;
 export type EventName = (typeof EVENTS)[number];
 export type EventProps = Record<string, string | number | boolean | null>;

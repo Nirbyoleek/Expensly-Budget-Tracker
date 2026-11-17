@@ -28,6 +28,8 @@ export type Transaction = {
   note: string | null;
   account_id: string | null;
   import_id: string | null;
+  /** Money in from something other than salary that you chose to add to this month's budget. */
+  adds_to_budget?: boolean;
 };
 
 export type AccountType = "bank" | "card" | "investment" | "cash" | "loan";

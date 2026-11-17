@@ -59,6 +59,7 @@ export default function HomeView(props: {
             projected={v.projected}
             pace={v.pace}
             paceDiff={v.paceDiff}
+            boost={v.budgetBoost}
           />
           {props.setup && <SetupChecklist {...props.setup} />}
 

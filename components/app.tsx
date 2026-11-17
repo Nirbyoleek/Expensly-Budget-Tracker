@@ -9,7 +9,7 @@ import { inr, inrCompact } from "@/lib/money";
 /* ───────────────────────── context ───────────────────────── */
 
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
-type AddMode = "quick" | "sms" | "statement";
+type AddMode = "quick" | "income" | "sms" | "statement";
 
 type AppCtx = {
   cats: Category[];

@@ -23,7 +23,7 @@ const LABEL: Record<string, string> = {
   goal_created: "Made a goal", goal_autofill: "Turned on goal auto-fill", income_set: "Set income", account_saved: "Saved an account",
   recategorised: "Re-categorised everything", ai_question: "Asked AI", ai_sort: "AI sorted an import", capture_key: "Made an iPhone capture key",
   sms_captured: "SMS captured automatically", push_enabled: "Turned on notifications", export: "Exported data", sample_loaded: "Loaded sample data",
-  account_deleted: "Deleted their account", offline_synced: "Synced offline entries",
+  account_deleted: "Deleted their account", offline_synced: "Synced offline entries", money_in_added: "Added money in (not salary)",
 };
 
 /** The owner's view of how Expensly is used. Everyone else gets a 404. */

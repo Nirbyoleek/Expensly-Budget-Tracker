@@ -14,6 +14,7 @@ import { shortDate, todayISO } from "@/lib/dates";
 import { Sheet, useApp } from "./app";
 import { enqueue, isOfflineError } from "@/lib/offline-queue";
 import StatementGuide from "./StatementGuide";
+import MoneyInForm from "./MoneyInForm";
 
 type Row = PreparedRow & { include: boolean; dupe: boolean; edited: boolean };
 
@@ -31,15 +32,15 @@ export default function AddSheet() {
   const { addMode, closeAdd, openAdd } = useApp();
   if (!addMode) return null;
   return (
-    <Sheet title={addMode === "statement" ? "Import statement" : "Add spending"} onClose={closeAdd}>
+    <Sheet title={addMode === "statement" ? "Import statement" : addMode === "income" ? "Add money in" : "Add spending"} onClose={closeAdd}>
       <div className="seg" role="tablist">
-        {(["quick", "sms", "statement"] as const).map((m) => (
+        {(["quick", "income", "sms", "statement"] as const).map((m) => (
           <button key={m} role="tab" aria-selected={addMode === m} aria-pressed={addMode === m} onClick={() => openAdd(m)}>
-            {m === "quick" ? "Quick add" : m === "sms" ? "Bank SMS" : "Statement"}
+            {m === "quick" ? "Spends" : m === "income" ? "Money in" : m === "sms" ? "Bank SMS" : "Statement"}
           </button>
         ))}
       </div>
-      {addMode === "statement" ? <StatementPane key="st" /> : <TextPane key={addMode} mode={addMode} />}
+      {addMode === "statement" ? <StatementPane key="st" /> : addMode === "income" ? <MoneyInForm key="in" onDone={closeAdd} /> : <TextPane key={addMode} mode={addMode} />}
     </Sheet>
   );
 }

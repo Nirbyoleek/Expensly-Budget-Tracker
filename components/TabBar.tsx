@@ -29,7 +29,7 @@ export default function TabBar() {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register(SW_URL).catch(() => undefined);
     // Links from reminders like /home?add=statement open the right add sheet.
     const add = new URLSearchParams(window.location.search).get("add");
-    if (add === "statement" || add === "quick" || add === "sms") {
+    if (add === "statement" || add === "quick" || add === "sms" || add === "income") {
       openAdd(add);
       window.history.replaceState(null, "", window.location.pathname);
     }

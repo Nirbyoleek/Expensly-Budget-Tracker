@@ -13,6 +13,7 @@ import { monthLong, shortDate } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
 import { isCustomCategory, subName } from "@/lib/taxonomy";
 import CategoryForm from "@/components/CategoryForm";
+import AddMoneyInButton from "@/components/home/AddMoneyInButton";
 import AiBudgetPlan from "./AiBudgetPlan";
 
 type Row = { id: string; name: string; color: string; spent: number; budget: number; p: number; status: "Over" | "Ahead of pace" | "On track"; own: boolean };
@@ -22,6 +23,9 @@ export default function BudgetsView(props: {
   pace: number;
   spentByCat: Record<string, number>;
   budgets: Record<string, number>;
+  /** Extra money (not salary) added to this month's budget, and all extra money that came in. */
+  boost?: number;
+  extraIn?: number;
   monthTx: Transaction[];
   sample: boolean;
   aiOn?: boolean;
@@ -70,6 +74,19 @@ export default function BudgetsView(props: {
           <div><span className="eyebrow">Even pace by today</span><b className="num">{inr(Math.round(total * props.pace))}</b></div>
           <div><span className="eyebrow">Over budget</span><b className="num">{count("Over")} of {rows.length}</b></div>
         </div>
+      </section>
+      <section className="card budget-total">
+        <div className="section-h"><h2>This month&apos;s total budget</h2><AddMoneyInButton /></div>
+        <div className="bt-line"><span>Category budgets</span><b className="num">{inr(total)}</b></div>
+        <div className="bt-line"><span>Extra money added</span><b className="num good">{props.boost ? `+${inr(props.boost)}` : "₹0"}</b></div>
+        <div className="bt-line sum"><span>Total you can spend</span><b className="num">{inr(total + (total > 0 ? props.boost ?? 0 : 0))}</b></div>
+        <p className="hint">
+          {!total
+            ? "Set a budget for at least one category, then extra money you add (freelance, gifts, things you sold…) raises the total."
+            : (props.extraIn ?? 0) > (props.boost ?? 0)
+              ? `${inr((props.extraIn ?? 0) - (props.boost ?? 0))} more came in this month that isn't in the budget. Open it in Activity and tick "Add to this month's budget" to count it.`
+              : "Got money from freelance, a gift or selling something? Add it and what's safe to spend grows with it. Salary isn't counted here."}
+        </p>
       </section>
       {props.aiOn && (
         <div className="act-ai">
